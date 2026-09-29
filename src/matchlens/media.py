@@ -137,11 +137,23 @@ def sampled_frames(path: Path, fps: float, after: float = -1, stop=None):
             next_sample = t + 1 / fps
             import numpy as np
 
-            image = frame.to_ndarray(format="bgr24")
+            pts, timebase = frame.pts, str(frame.time_base)
             rotation = int(round(frame.rotation / 90)) % 4
+            if frame.width * frame.height > 40_000_000:
+                raise ValueError(
+                    "Frame exceeds supported analysis dimensions; original media remains preserved"
+                )
+            # Bound queued RGB payloads even for high-resolution originals.
+            # Normalized coordinates remain in the displayed-original space.
+            scale = min(1.0, 2560 / max(frame.width, frame.height))
+            if scale < 1:
+                frame = frame.reformat(
+                    width=max(1, round(frame.width * scale)), height=max(1, round(frame.height * scale))
+                )
+            image = frame.to_ndarray(format="bgr24")
             if rotation:
                 image = np.ascontiguousarray(np.rot90(image, k=rotation))
-            yield t, image, frame.pts, str(frame.time_base)
+            yield t, image, pts, timebase
 
 
 def quality(image) -> list[str]:

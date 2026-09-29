@@ -55,7 +55,7 @@ def apply_review(frame: dict, review: dict) -> dict:
 
     result = copy.deepcopy(frame)
     t, source = frame["time"], frame["source_id"]
-    result["excluded"] = any(
+    result["excluded"] = bool(frame.get("reviewed_excluded")) or any(
         x["start"] <= t < x["end"] and x.get("source_id", source) == source for x in review["exclusions"]
     )
     annotation = review.get("annotations", {}).get(source, {})

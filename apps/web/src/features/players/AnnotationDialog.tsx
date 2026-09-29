@@ -1,4 +1,8 @@
 import { useEffect, useState, useRef } from "react";
+import {
+  BroadcastEvidence,
+  type BroadcastSetup,
+} from "../timeline/BroadcastEvidence";
 import { api } from "../../api";
 import type { Team } from "../../types";
 import { ModalShell } from "../../shared/ModalShell";
@@ -27,6 +31,7 @@ type Bundle = {
   frames: FrameLabel[];
   intervals: { start: number; end: number; kind: string; note: string }[];
   events: unknown[];
+  broadcast: BroadcastSetup;
 };
 
 export function AnnotationDialog({
@@ -61,7 +66,7 @@ export function AnnotationDialog({
   const [image, setImage] = useState("");
   const [objects, setObjects] = useState<ObjectLabel[]>([]);
   const [observable, setObservable] = useState(true);
-  const [kind, setKind] = useState<"person" | "ball">("person");
+  const [kind, setKind] = useState<"person" | "ball" | "scoreboard">("person");
   const [selectedObject, setSelectedObject] = useState<number | null>(null);
   const [labelTime, setLabelTime] = useState(0);
   const drag = useRef<number[] | null>(null);
@@ -147,6 +152,7 @@ export function AnnotationDialog({
           >
             <option value="person">Player box · drag</option>
             <option value="ball">Ball position · click or drag</option>
+            <option value="scoreboard">Scoreboard region · drag</option>
           </select>
         </label>
         <label className="checkbox">
@@ -187,6 +193,14 @@ export function AnnotationDialog({
             box = [a[0] - 0.008, a[1] - 0.012, a[0] + 0.008, a[1] + 0.012];
           box = box.map((v) => Math.min(1, Math.max(0, v)));
           if (box[2] - box[0] < 0.001 || box[3] - box[1] < 0.001) return;
+          if (kind === "scoreboard") {
+            if (bundle)
+              setBundle({
+                ...bundle,
+                broadcast: { ...bundle.broadcast, scoreboard: box },
+              });
+            return;
+          }
           setObjects([
             ...objects,
             {
@@ -210,6 +224,25 @@ export function AnnotationDialog({
           viewBox="0 0 1000 1000"
           preserveAspectRatio="none"
         >
+          {bundle?.broadcast.scoreboard && (
+            <rect
+              x={bundle.broadcast.scoreboard[0] * 1000}
+              y={bundle.broadcast.scoreboard[1] * 1000}
+              width={
+                (bundle.broadcast.scoreboard[2] -
+                  bundle.broadcast.scoreboard[0]) *
+                1000
+              }
+              height={
+                (bundle.broadcast.scoreboard[3] -
+                  bundle.broadcast.scoreboard[1]) *
+                1000
+              }
+              stroke="#f5bd55"
+              strokeWidth="3"
+              fill="transparent"
+            />
+          )}
           {objects.map((o, i) => (
             <g key={o.id}>
               <rect
@@ -356,7 +389,7 @@ export function AnnotationDialog({
             </label>
             <label>
               Interval
-              <select name="kind">
+              <select name="kind" aria-label="Interval type">
                 {[
                   "camera_cut",
                   "replay",
@@ -393,6 +426,13 @@ export function AnnotationDialog({
           </p>
         ))}
       </details>
+      {bundle && (
+        <BroadcastEvidence
+          value={bundle.broadcast}
+          time={labelTime}
+          change={(broadcast) => setBundle({ ...bundle, broadcast })}
+        />
+      )}
       <div className="modal-actions">
         <label>
           Import labels

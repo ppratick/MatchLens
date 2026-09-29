@@ -8,6 +8,7 @@ from typing import Literal
 
 from pydantic import Field, model_validator
 
+from .broadcast import BroadcastReview
 from .domain import Calibration, Event, StrictModel
 from .geometry import calibrate
 from .media import sha256
@@ -77,6 +78,7 @@ class AnnotationBundle(StrictModel):
     events: list[Event] = Field(default_factory=list, max_length=5000)
     field_calibrations: list[Calibration] = Field(default_factory=list, max_length=100)
     television: TelevisionLabel | None = None
+    broadcast: BroadcastReview = Field(default_factory=BroadcastReview)
 
     @model_validator(mode="after")
     def unique(self):
@@ -131,6 +133,7 @@ def export_annotations(store: Store, mid: str, sid: str) -> dict:
             if c["source_id"] == sid
         ],
         television=television,
+        broadcast=saved.get("broadcast", {}),
     ).model_dump()
 
 
@@ -153,6 +156,8 @@ def import_annotations(store: Store, mid: str, sid: str, bundle: AnnotationBundl
         raise ValueError("Annotation event lies outside source")
     if any(c.source_id != sid or not start <= c.start < end for c in bundle.field_calibrations):
         raise ValueError("Field calibration belongs to another source or timeline")
+    if any(not start <= o.time <= end for o in bundle.broadcast.observations):
+        raise ValueError("Scoreboard observation lies outside source")
     fields = [calibrate(c.model_dump()) for c in bundle.field_calibrations]
     television = prepare_setup(store, mid, sid, bundle.television.model_dump()) if bundle.television else None
 

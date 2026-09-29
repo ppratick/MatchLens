@@ -27,7 +27,7 @@ Implemented and locally exercised on 2026-09-29. This is an engineering beta wit
 
 ## Verified in this environment
 
-- 40 backend domain/API/media tests pass. One upstream Starlette/httpx test-client deprecation warning remains; it is not a runtime test failure.
+- 47 backend domain/API/media tests pass. One upstream Starlette/httpx test-client deprecation warning remains; it is not a runtime test failure.
 - TypeScript checking and Vite production build pass.
 - A real localhost end-to-end run generated and analyzed the 20-second synthetic fixture, produced 14 tracks, served HTTP range video, and exported a playable MP4 plus HTML/JSON/CSV.
 - The same run showed score 0–1 and 85% sampled coverage after the fixture exclusion; these are scripted demonstration facts, not inferred real-match results.
@@ -75,3 +75,11 @@ CoreML can be selected experimentally. Actual kernel placement, one-frame raw ou
 Live overload policy reduces sampling, disables overlays, skips stale analysis with intervals, then pauses inference in recording-only mode. Original video is never deleted to reduce latency. Buffer pauses/suspension have explicit unknown-boundary gaps; exports cannot silently concatenate those timelines. A full 120-minute hardware soak, true device frame-drop counts and sensor-to-screen latency remain unverified.
 
 The corrected 180-second generated capture/actual YOLOX CPU soak preserved 91 playable, audio-containing segments and 181.355 seconds through an intentional inference crash, with no segment timeline gaps. This short engineering soak is not the full-match hardware gate. Raw measurements are committed without media in `validation/soak-synthetic-180s.json`. All automated writes remained in temporary libraries; the user's library was not modified.
+
+## Broadcast review and fault checks
+
+Six browser workflows pass, including opt-in goal suggestions from manually read scoreboard increments plus a separately marked replay. Score stays unchanged until human confirmation. Definitions, evidence rules and per-class evaluation gates are in `docs/EVENTS.md`; zero evaluated real-event samples means precision/recall/false positives remain unknown. New runs snapshot reviewed cuts/exclusions; cuts reset identities and control candidates and invalidate prior field mapping. Closeups/replays/non-play/unknown samples withhold inference. Automatic replay/OCR/shot/pass/save/turnover classifiers remain disabled.
+
+47 backend tests now include actual variable-frame-rate PTS sampling, 4K input with bounded 2560-pixel analysis payloads, original preservation, truncated-copy rejection, manual-cut/exclusion processing, source-specific replay exclusions and goal-evidence recomputation/undo. Committed segments carry SHA-256; analysis refuses changed preserved segments. Recording resolution is unchanged.
+
+The actual macOS disk-full harness mounted an owned 768 MiB temporary image. Capture stopped at the 512 MiB reserve, three earlier segments remained readable with unchanged hashes, and a later actual ENOSPC (errno 28) blocked derived writes. The image was detached; the host filesystem and user library were not filled or modified. Raw result: `validation/disk-fault-synthetic.json`.

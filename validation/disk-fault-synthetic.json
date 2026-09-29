@@ -1,0 +1,1 @@
+{"schema":"matchlens-disk-fault-1","volume_bytes":805306368,"source_profile":"synthetic","reserve_failure":"Insufficient free space. Recording reserve is 512 MiB.","actual_enospc_errno":28,"segments_retained":3,"prior_checksums_unchanged":true,"segments_probe":true,"user_library_touched":false}

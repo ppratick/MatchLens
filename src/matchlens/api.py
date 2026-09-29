@@ -117,6 +117,12 @@ def create_app(settings: Settings | None = None, testing=False):
             },
         }
 
+    @app.get("/api/event-definitions")
+    def event_definitions():
+        from .broadcast import event_catalog
+
+        return event_catalog()
+
     @app.get("/api/profiles")
     def source_profiles():
         from .profiles import profiles
@@ -215,6 +221,9 @@ def create_app(settings: Settings | None = None, testing=False):
         config["source_id"] = source["id"]
         revision, review = store.review(match_id)
         config["television"] = review.get("television", {}).get(source["id"])
+        config["reviewed_intervals"] = (
+            review.get("annotations", {}).get(source["id"], {}).get("intervals", [])
+        )
         config["setup_revision"] = revision
         return supervisor.enqueue(match_id, "analysis", config)
 

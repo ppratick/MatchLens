@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import math
 
+from .broadcast import goal_candidates
 from .domain import Correction, Event, Label
 from .geometry import apply_review, calibrate
 from .sports import SPORTS, union_intervals
@@ -98,6 +99,13 @@ def correct(store: Store, match_id: str, command: Correction) -> int:
 
 def effective_events(store: Store, match_id: str, state: dict) -> list[dict]:
     events = {e["id"]: e for e in store.proposals(match_id)}
+    for sid, bundle in state.get("annotations", {}).items():
+        events.update(
+            {
+                e["id"]: e
+                for e in goal_candidates(sid, bundle.get("broadcast", {}), bundle.get("intervals", []))
+            }
+        )
     events.update(state["events"])
     result = []
     for event in events.values():

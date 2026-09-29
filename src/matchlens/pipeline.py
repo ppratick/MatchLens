@@ -25,6 +25,7 @@ def analyze(store: Store, match_id: str, job: dict):
     detector = detector_for(config["detector"], store.settings, config.get("provider", "cpu"))
     checkpoint = job.get("checkpoint", {})
     television = config.get("television")
+    reviewed_intervals = config.get("reviewed_intervals", [])
     guard = None
     tv_invalid = checkpoint.get("tv_invalid", False)
     if television:
@@ -54,13 +55,15 @@ def analyze(store: Store, match_id: str, job: dict):
         "detector": detector.name,
         "model_sha256": sha256(model_path) if config["detector"] in ("yolox", "yolox_s") else None,
         "source_sha256": source.get("sha256"),
-        "pipeline": "0.2.0",
+        "pipeline": "0.2.1",
+        "analysis_max_edge": 2560,
         "sampling_fps": requested_fps,
         "accuracy": "unvalidated",
         "runtime": config.get("provider", "cpu"),
         "registered_providers": detector.session.get_providers() if hasattr(detector, "session") else [],
         "television": television,
         "setup_revision": config.get("setup_revision"),
+        "reviewed_intervals": reviewed_intervals,
         "source_id": source["id"],
         "source_profile": profile_id(source, store.get(match_id)["profile"]),
     }
@@ -158,6 +161,8 @@ def analyze(store: Store, match_id: str, job: dict):
                 pending = pending[-2:]
                 tracker.reset()
         for segment in pending:
+            if segment.get("sha256") and sha256(store.path(match_id, segment["path"])) != segment["sha256"]:
+                raise ValueError("Preserved media changed; analysis refused")
             offset = segment["start"]
             after = last - offset if last >= offset else -1
             for t, image, pts, timebase in buffered_frames(store.path(match_id, segment["path"]), fps, after):
@@ -170,13 +175,26 @@ def analyze(store: Store, match_id: str, job: dict):
                     previous_thumb is not None
                     and float(np.mean(np.abs(thumb.astype(float) - previous_thumb))) > 45
                 )
-                if cut:
+                manual_cut = any(
+                    i["kind"] == "camera_cut" and last < i["start"] <= timestamp for i in reviewed_intervals
+                )
+                excluded = any(
+                    i["kind"] in ("replay", "closeup", "non_play", "unknown")
+                    and i["start"] <= timestamp < i["end"]
+                    for i in reviewed_intervals
+                )
+                if cut or manual_cut:
                     tracker.reset()
+                    candidates = SoccerCandidates()
                     last_cut = timestamp
                     flags.append("Camera movement/cut: identities reset; review calibration validity")
                 previous_thumb = thumb.astype(float)
                 analysis_image = image
-                allow_detection = True
+                allow_detection = not excluded
+                if excluded:
+                    tracker.reset()
+                    candidates = SoccerCandidates()
+                    flags.append("Reviewed broadcast exclusion: inference withheld")
                 if guard and timestamp >= television["start"]:
                     movement = guard.check(image)
                     if movement == "moved":
@@ -210,11 +228,13 @@ def analyze(store: Store, match_id: str, job: dict):
                     "source_id": source["id"],
                     "time": timestamp,
                     "source_pts": pts,
+                    "media_sha256": segment.get("sha256", source.get("sha256")),
                     "time_base": timebase,
                     "tracks": tracks,
                     "warnings": flags,
                     "sample_interval": 1 / fps,
-                    "scene_cut": cut,
+                    "scene_cut": cut or manual_cut,
+                    "reviewed_excluded": excluded,
                     "last_cut": last_cut,
                     "television_valid": not tv_invalid if television else None,
                     "analysis_coordinate_space": "displayed_original_normalized",
@@ -222,7 +242,7 @@ def analyze(store: Store, match_id: str, job: dict):
                     "height": image.shape[0],
                 }
                 batch.append(frame)
-                if config["experimental_events"]:
+                if config["experimental_events"] and not excluded:
                     proposals.extend(candidates.update(tracks, timestamp, source["id"], run_id))
                 last, frames_count = timestamp, frames_count + 1
                 if len(batch) >= 10:

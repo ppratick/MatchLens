@@ -12,7 +12,7 @@ import time
 from urllib.parse import urlparse
 
 from .domain import now
-from .media import probe
+from .media import probe, sha256
 from .storage import Store, atomic_json
 
 
@@ -161,7 +161,9 @@ def capture(store: Store, match_id: str, job: dict):
                     meta = probe(segment, store.settings)
                 except (ValueError, subprocess.TimeoutExpired):
                     continue
-                source["segments"].append({"id": segment.stem, "path": relative, "start": a, "end": b})
+                source["segments"].append(
+                    {"id": segment.stem, "path": relative, "start": a, "end": b, "sha256": sha256(segment)}
+                )
                 source.update(
                     duration=b,
                     width=meta["width"],

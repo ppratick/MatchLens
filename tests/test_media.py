@@ -326,3 +326,93 @@ def test_recording_survives_analysis_failure(store, match):
                 child.terminate()
             proc.terminate()
             proc.wait(timeout=5)
+
+
+def test_reviewed_cuts_and_replays_are_snapshotted_in_analysis(store, video_match):
+    mid, source = video_match
+    job = make_job(store, mid, source)
+    job["config"]["reviewed_intervals"] = [
+        {"kind": "camera_cut", "start": 1, "end": 1.1},
+        {"kind": "replay", "start": 2, "end": 3},
+    ]
+    analyze(store, mid, job)
+    frames = store.frames(mid)
+    cut = next(f for f in frames if abs(f["time"] - 1) < 0.01)
+    assert cut["scene_cut"] and cut["last_cut"] == pytest.approx(1)
+    excluded = [f for f in frames if 2 <= f["time"] < 3]
+    assert excluded and all(f["reviewed_excluded"] and f["tracks"] == [] for f in excluded)
+    assert job["provenance"]["reviewed_intervals"] == job["config"]["reviewed_intervals"]
+
+
+def test_vfr_uses_media_pts_and_preserves_skipped_timestamps(store, match):
+    from matchlens.decoder import buffered_frames
+
+    staged = store.path(match, "temporary/vfr.mp4")
+    run_media(
+        [
+            store.settings.ffmpeg,
+            "-v",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "testsrc2=size=320x180:rate=30:duration=2",
+            "-vf",
+            "select='if(lt(t,1),not(mod(n,2)),not(mod(n,5)))'",
+            "-fps_mode",
+            "vfr",
+            "-c:v",
+            "libx264",
+            "-threads",
+            "2",
+            str(staged),
+        ]
+    )
+    rows = list(buffered_frames(staged, 30))
+    times = [r[0] for r in rows]
+    assert len(rows) == 21
+    assert times[1] - times[0] == pytest.approx(2 / 30, abs=0.001)
+    assert times[-1] - times[-2] == pytest.approx(5 / 30, abs=0.001)
+    assert all(
+        t == pytest.approx(pts * float(__import__("fractions").Fraction(tb))) for t, _, pts, tb in rows
+    )
+
+
+def test_analysis_queue_bounds_high_resolution_payload(store, match):
+    from matchlens.decoder import buffered_frames
+
+    staged = store.path(match, "temporary/4k.mp4")
+    run_media(
+        [
+            store.settings.ffmpeg,
+            "-v",
+            "error",
+            "-y",
+            "-f",
+            "lavfi",
+            "-i",
+            "color=c=green:size=3840x2160:rate=1:duration=1",
+            "-c:v",
+            "libx264",
+            "-threads",
+            "2",
+            str(staged),
+        ]
+    )
+    before = sha256(staged)
+    rows = list(buffered_frames(staged, 1))
+    assert rows[0][1].shape == (1440, 2560, 3)
+    assert probe(staged, store.settings)["width"] == 3840
+    assert sha256(staged) == before
+
+
+def test_truncated_copy_rejected_without_touching_original(store, video_match):
+    mid, source = video_match
+    original = store.path(mid, source["path"])
+    checksum = sha256(original)
+    copied = store.path(mid, "temporary/truncated.mp4")
+    copied.write_bytes(original.read_bytes()[: original.stat().st_size // 2])
+    with pytest.raises(ValueError):
+        register_import(store, mid, copied, "truncated.mp4")
+    assert sha256(original) == checksum
