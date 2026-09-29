@@ -10,6 +10,21 @@ from pydantic import Field, model_validator
 from .domain import StrictModel
 
 
+def shot_state(image, timestamp, previous_time, previous_thumbnail, intervals):
+    """Shared sampled-shot policy for production analysis and evaluation."""
+    import cv2
+    import numpy as np
+
+    thumbnail = cv2.resize(cv2.cvtColor(image, cv2.COLOR_BGR2GRAY), (64, 36)).astype(float)
+    cut = previous_thumbnail is not None and float(np.mean(np.abs(thumbnail - previous_thumbnail))) > 45
+    manual_cut = any(i["kind"] == "camera_cut" and previous_time < i["start"] <= timestamp for i in intervals)
+    excluded = any(
+        i["kind"] in ("replay", "closeup", "non_play", "unknown") and i["start"] <= timestamp < i["end"]
+        for i in intervals
+    )
+    return thumbnail, cut, manual_cut, excluded
+
+
 class ScoreObservation(StrictModel):
     time: float = Field(ge=0)
     home: int = Field(ge=0, le=99)

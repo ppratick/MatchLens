@@ -27,7 +27,7 @@ Implemented and locally exercised on 2026-09-29. This is an engineering beta wit
 
 ## Verified in this environment
 
-- 52 backend domain/API/media tests and seven Playwright workflows pass. One upstream Starlette/httpx test-client deprecation warning remains; it is not a runtime test failure.
+- 55 backend domain/API/media tests and seven Playwright workflows pass. One upstream Starlette/httpx test-client deprecation warning remains; it is not a runtime test failure.
 - TypeScript checking and Vite production build pass.
 - A real localhost end-to-end run generated and analyzed the 20-second synthetic fixture, produced 14 tracks, served HTTP range video, and exported a playable MP4 plus HTML/JSON/CSV.
 - The same run showed score 0–1 and 85% sampled coverage after the fixture exclusion; these are scripted demonstration facts, not inferred real-match results.
@@ -120,3 +120,22 @@ Model imports now enforce the adapter's static float32 image input and 80-class
 raw-grid output contract before inference. Both official Tiny and Small imports
 passed against disposable storage. No real soccer labels, physical phone capture,
 OS permission/audio certification, or 120-minute hardware soak were supplied.
+
+## Benchmark preprocessing milestone
+
+Benchmark schema 3 consumes the revisioned annotation bundle, applies its saved
+TV warp/movement guard, and returns detections to original annotation coordinates.
+Production analysis and benchmarking share the sampled cut/exclusion policy.
+Results retain annotation/reference hashes, revision, preprocessing settings,
+movement states, cut resets and separate sampled/inference counts. Reviewed
+non-play intervals are excluded from accuracy; eligible frames withheld by an
+invalid TV setup still count as misses. No manual player boxes become detector
+inputs. Missing TV calibration explicitly reports original-image preprocessing.
+
+The geometry regression uses real decoded generated video and a detector test
+double to test coordinate consistency; its counts are not neural accuracy.
+The actual HOG CLI smoke check processed 100 samples from the checksummed synthetic
+demo. Raw result: `validation/benchmark-profile-smoke-synthetic.json`, run alongside
+other checks, so it is not a controlled performance comparison. 55 backend tests
+and seven browser workflows pass after sharing the shot policy. Real labels and
+physical TV recordings remain required for profile accuracy.

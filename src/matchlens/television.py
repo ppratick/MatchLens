@@ -96,19 +96,9 @@ class MovementGuard:
         return "stable"
 
 
-def prepare_setup(store, match_id: str, source_id: str, body: dict):
+def decode_reference_image(data: str):
     import base64
 
-    import cv2
-    import numpy as np
-
-    from .media import sha256
-
-    source = store.source(match_id, source_id)
-    calibration = TelevisionCalibration.model_validate(body["calibration"]).model_dump()
-    if calibration["start"] > source.get("duration", 0) + source.get("offset", 0):
-        raise ValueError("Calibration starts outside received video")
-    data = str(body.get("reference_image", ""))
     if not data.startswith("data:image/") or len(data) > 8 * 1024 * 1024:
         raise ValueError("Provide a local reference frame under 8 MiB")
     try:
@@ -118,6 +108,17 @@ def prepare_setup(store, match_id: str, source_id: str, body: dict):
         raise ValueError("Invalid reference image") from exc
     if image is None or image.size > 40_000_000:
         raise ValueError("Invalid or oversized reference image")
+    return image, raw
+
+
+def prepare_setup(store, match_id: str, source_id: str, body: dict):
+    from .media import sha256
+
+    source = store.source(match_id, source_id)
+    calibration = TelevisionCalibration.model_validate(body["calibration"]).model_dump()
+    if calibration["start"] > source.get("duration", 0) + source.get("offset", 0):
+        raise ValueError("Calibration starts outside received video")
+    image, _ = decode_reference_image(str(body.get("reference_image", "")))
     path = store.path(match_id, f"thumbnails/tv-{uid()}.jpg")
     cv2.imwrite(str(path), cv2.resize(image, (640, 360)))
     calibration.update(

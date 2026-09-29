@@ -65,7 +65,7 @@ measured improvement; do not add them solely to expand the stack.
 
 Milestones 0–7 have engineering implementations, relevant automated checks,
 desktop UI inspection, committed measurements and local commits. This does not
-close milestone 8 or certify the product. Current checks are 52 backend tests,
+close milestone 8 or certify the product. Current checks are 55 backend tests,
 seven Playwright workflows, Ruff lint/format, TypeScript, production build and
 frontend/phone formatting. Every automated library was temporary.
 
@@ -78,10 +78,10 @@ frontend/phone formatting. Every automated library was temporary.
 | 5. Clear uncertainty | Profile limits, unknown/contested possession, experimental event definitions, Coming later sideline and withheld metric distances | Review wording during physical-device use |
 | 6. Efficient corrections | Drawn boxes/ball, identity/team, events, exclusions, TV corners and partial-field landmark UI; revisioned exchange | Real correction-time baseline; no SAM 2 speedup claim |
 | 7. Persisted consistent corrections | SQLite revisions, undo/redo, reopened store tests, browser reload, pinned report/export tests | Longer real-session recovery and backup usability |
-| 8. Measured detection/tracking accuracy | Per-profile checksum-aware labels and precision/recall/identity/team metric harness | No permitted labeled real soccer footage exists yet; accuracy remains unknown |
+| 8. Measured detection/tracking accuracy | Per-profile checksum-aware labels and precision/recall/identity/team harness; TV preprocessing, reviewed cuts/exclusions and annotation provenance retained | No permitted labeled real soccer footage exists yet; accuracy remains unknown |
 | 9. CPU/CoreML measurements | Tiny, Small and HOG matrix; neural CPU/CoreML runtime placement, one-frame parity, first inference, short sustained speed and RSS | Full-corpus parity, controlled cold start and sustained live hardware validation; CPU stays default |
 | 10. Measured integrity/delay/resources | 180-second generated audio/video soak survives analysis kill; bounded queue/overload tests; owned-volume ENOSPC test | Actual source latency/drop accounting, full-match resource stability and 120-minute hardware soak |
-| 11. Critical automated workflows | 52 backend tests and seven actual browser workflows, including live/offline selection and retry recovery | Real OS permission prompts and phone browsers cannot be replaced by generated streams |
+| 11. Critical automated workflows | 55 backend tests and seven actual browser workflows, including live/offline selection and retry recovery | Real OS permission prompts and phone browsers cannot be replaced by generated streams |
 | 12. Reproducibility/history/demo | Preserved baseline, feature commits, launcher/doctor/model import, polished labeled synthetic demo and updated docs | Complete external release evidence before calling portfolio version finished |
 | 13. Sideline Coming later | Profile and setup/source UI explicitly withhold current support | Future work only |
 | 14. Free/local workflow | SQLite/files, local models, loopback administrative API, narrow paired receiver, no account/API subscription | Dependencies/models must be installed once; no cloud processing is required |

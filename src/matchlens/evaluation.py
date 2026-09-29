@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import platform
 import time
@@ -9,8 +10,11 @@ import numpy as np
 import psutil
 from scipy.optimize import linear_sum_assignment
 
+from .annotations import AnnotationBundle
+from .broadcast import shot_state
 from .decoder import buffered_frames
 from .media import probe, sha256
+from .television import MovementGuard, decode_reference_image, original_box, rectify
 from .tracking import Tracker, iou
 from .vision import detector_for
 
@@ -196,12 +200,52 @@ def benchmark_video(
         raise ValueError("Declare a source profile and benchmark fps between 0.5 and 30")
     metadata = probe(path, settings)
     checksum = sha256(path)
-    labels = json.loads(Path(annotations).read_text()) if annotations else None
-    if labels:
+    labels, annotation_checksum = None, None
+    if annotations:
+        if Path(annotations).stat().st_size > 64 * 1024 * 1024:
+            raise ValueError("Benchmark annotations exceed 64 MiB")
+        data = Path(annotations).read_bytes()
+        if len(data) > 64 * 1024 * 1024:
+            raise ValueError("Benchmark annotations exceed 64 MiB")
+        labels = json.loads(data)
+        annotation_checksum = hashlib.sha256(data).hexdigest()
+        if not isinstance(labels, dict):
+            raise ValueError("Benchmark annotations must be an object")
         if labels.get("source_sha256", labels.get("video_sha256")) != checksum:
             raise ValueError("Annotation checksum does not match video")
         if labels.get("source_profile") != profile or labels.get("source_offset", 0) != 0:
             raise ValueError("Benchmark labels must match this source profile and file-relative timeline")
+        labels = AnnotationBundle.model_validate(
+            {
+                **{k: v for k, v in labels.items() if k != "video_sha256"},
+                "source_sha256": checksum,
+                "revision": labels.get("revision", 0),
+            }
+        ).model_dump()
+        if any(f["time"] >= metadata["duration"] for f in labels["frames"]):
+            raise ValueError("Benchmark frame lies outside this video")
+        if any(i["end"] > metadata["duration"] + 0.1 for i in labels["intervals"]):
+            raise ValueError("Benchmark interval lies outside this video")
+    television = labels.get("television") if labels else None
+    guard, calibration = None, None
+    preprocessing = {
+        "mode": "original_image",
+        "coordinate_space": "displayed_original_normalized",
+        "analysis_max_edge": 2560,
+        "automatic_shot_change_threshold": 45,
+        "reviewed_intervals": labels.get("intervals", []) if labels else [],
+    }
+    if television:
+        calibration = television["calibration"]
+        if calibration["start"] > metadata["duration"]:
+            raise ValueError("Television calibration starts outside this video")
+        reference, raw_reference = decode_reference_image(television["reference_image"])
+        guard = MovementGuard(reference, calibration)
+        preprocessing.update(
+            mode="television_rectified",
+            television=calibration,
+            reference_sha256=hashlib.sha256(raw_reference).hexdigest(),
+        )
     with tempfile.TemporaryDirectory(prefix="matchlens-profile-") as directory:
         start = time.monotonic()
         detector = detector_for(detector_name, settings, provider, Path(directory) / "runtime")
@@ -211,11 +255,14 @@ def benchmark_video(
             first = next(samples)
         finally:
             samples.close()
+        first_image = (
+            rectify(first[1], calibration) if calibration and first[0] >= calibration["start"] else first[1]
+        )
         warmup_start = time.monotonic()
-        detector.detect(first[1])
+        detector.detect(first_image)
         first_inference = time.monotonic() - warmup_start
         for _ in range(3):
-            detector.detect(first[1])
+            detector.detect(first_image)
         warmup = time.monotonic() - warmup_start
         parity = {"status": "not applicable"}
         model_file = settings.data_dir / (
@@ -223,7 +270,7 @@ def benchmark_video(
         )
         if provider == "coreml" and hasattr(detector, "raw"):
             cpu = YOLOX(model_file)
-            expected, actual = cpu.raw(first[1]), detector.raw(first[1])
+            expected, actual = cpu.raw(first_image), detector.raw(first_image)
             parity = {
                 "status": "compared",
                 "raw_allclose": bool(np.allclose(expected, actual, rtol=1e-3, atol=1e-3)),
@@ -239,9 +286,50 @@ def benchmark_video(
         frames, stage_ms = [], []
         start, peak = time.monotonic(), 0
         count = 0
+        inference_count, cut_count = 0, 0
+        previous_thumbnail, previous_time = None, -1
+        movement_counts = {}
+        reviewed_withheld = 0
+        withheld_labels = (
+            {
+                f["time"]
+                for f in labels["frames"]
+                if any(
+                    i["kind"] in ("replay", "closeup", "non_play", "unknown")
+                    and i["start"] <= f["time"] < i["end"]
+                    for i in labels["intervals"]
+                )
+            }
+            if labels
+            else set()
+        )
         for t, image, _, _ in buffered_frames(path, fps):
             before = time.monotonic()
-            detections = detector.detect(image)
+            thumbnail, cut, manual_cut, excluded = shot_state(
+                image, t, previous_time, previous_thumbnail, preprocessing["reviewed_intervals"]
+            )
+            if cut or manual_cut or excluded:
+                tracker.reset()
+            if cut or manual_cut:
+                cut_count += 1
+            previous_thumbnail, previous_time = thumbnail, t
+            analysis_image, allow_detection = image, not excluded
+            if excluded:
+                reviewed_withheld += 1
+            if guard and t >= calibration["start"]:
+                movement = guard.check(image)
+                movement_counts[movement] = movement_counts.get(movement, 0) + 1
+                if movement in ("moved", "obscured"):
+                    allow_detection = False
+                    if movement == "moved":
+                        tracker.reset()
+                analysis_image = rectify(image, calibration)
+            detections = detector.detect(analysis_image) if allow_detection else []
+            if allow_detection:
+                inference_count += 1
+            if calibration and t >= calibration["start"]:
+                for detection in detections:
+                    detection.box = original_box(detection.box, calibration, image.shape)
             tracks = tracker.update(detections, t)
             stage_ms.append((time.monotonic() - before) * 1000)
             # Retain only labeled samples; unlabeled long benchmarks stay bounded.
@@ -253,8 +341,11 @@ def benchmark_video(
             peak = max(peak, psutil.Process().memory_info().rss)
         wall = time.monotonic() - start
         result = {
-            "schema": "matchlens-benchmark-2",
+            "schema": "matchlens-benchmark-3",
             "source_profile": profile,
+            "annotation_sha256": annotation_checksum,
+            "annotation_revision": labels["revision"] if labels else None,
+            "preprocessing": preprocessing,
             "video_sha256": checksum,
             "video": metadata,
             "hardware": platform.platform(),
@@ -268,15 +359,21 @@ def benchmark_video(
             "first_inference_seconds": first_inference,
             "warmup_seconds": warmup,
             "processed_frames": count,
+            "inference_frames": inference_count,
+            "shot_resets": cut_count,
+            "reviewed_withheld_frames": reviewed_withheld,
+            "television_movement_samples": movement_counts,
             "wall_seconds": wall,
             "total_seconds_including_init_warmup": initialization + warmup + wall,
             "parity_and_fixture_setup_seconds": parity_seconds,
             "processed_fps": count / max(wall, 0.001),
+            "inference_fps": inference_count / max(wall, 0.001),
             "media_seconds_per_wall_second": metadata["duration"] / max(wall, 0.001),
             "peak_worker_rss_mb": peak / 1024**2,
             "inference_tracking_ms": {f"p{p}": float(np.percentile(stage_ms, p)) for p in (50, 95, 99)}
             if stage_ms
             else {},
+            "stage_scope": "Shot policy, television preprocessing/movement checks, eligible inference, tracking; excludes persistence, event generation, exports and UI",
             "accuracy": "not evaluated — annotations not supplied",
             "recording_drops": "not measured by offline benchmark",
             "live_delay": "not measured by offline benchmark",
@@ -285,7 +382,7 @@ def benchmark_video(
         if hasattr(detector, "session"):
             result["graph_placement"] = profile_placement(detector.session.end_profiling())
         if labels:
-            observable = [f for f in labels["frames"] if f.get("observable", True)]
+            observable = [f for f in labels["frames"] if f["observable"] and f["time"] not in withheld_labels]
             result["accuracy"] = {
                 "players": class_metrics(frames, observable, "person", 0.5 / fps),
                 "ball": class_metrics(frames, observable, "ball", 0.5 / fps),
@@ -306,7 +403,10 @@ def benchmark_video(
                 ),
                 "team": team_metrics(frames, observable, 0.5 / fps),
                 "labeled_frames": len(observable),
-                "unobservable_frames": len(labels["frames"]) - len(observable),
+                "unobservable_frames": sum(not f["observable"] for f in labels["frames"]),
+                "review_excluded_labeled_frames": sum(
+                    f["observable"] and f["time"] in withheld_labels for f in labels["frames"]
+                ),
             }
         return result
 

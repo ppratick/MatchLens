@@ -7,6 +7,7 @@ import cv2
 import numpy as np
 import psutil
 
+from .broadcast import shot_state
 from .decoder import buffered_frames
 from .domain import now
 from .live import live_policy
@@ -169,20 +170,10 @@ def analyze(store: Store, match_id: str, job: dict):
                 timestamp = offset + t
                 if timestamp <= last + 1e-6:
                     continue
-                thumb = cv2.resize(cv2.cvtColor(image, cv2.COLOR_BGR2GRAY), (64, 36))
+                thumb, cut, manual_cut, excluded = shot_state(
+                    image, timestamp, last, previous_thumb, reviewed_intervals
+                )
                 flags = quality(image)
-                cut = (
-                    previous_thumb is not None
-                    and float(np.mean(np.abs(thumb.astype(float) - previous_thumb))) > 45
-                )
-                manual_cut = any(
-                    i["kind"] == "camera_cut" and last < i["start"] <= timestamp for i in reviewed_intervals
-                )
-                excluded = any(
-                    i["kind"] in ("replay", "closeup", "non_play", "unknown")
-                    and i["start"] <= timestamp < i["end"]
-                    for i in reviewed_intervals
-                )
                 if cut or manual_cut:
                     tracker.reset()
                     candidates = SoccerCandidates()

@@ -119,3 +119,38 @@ A subsequent [five-row measured matrix](../validation/provider-comparison-two-mo
 ORT kernel traces recorded actual CoreML execution for both models. One-frame raw output parity passed at `rtol=atol=0.001`; maximum absolute differences were 0.00004297 (Tiny) and 0.00006294 (Small). Warmup/compilation caches were not forcibly cleared: Tiny's subsequent first inference is faster than the earlier 2.463-second run, so do not call this a controlled cold-start comparison. Profiling/parity add benchmark overhead; RSS is the benchmark worker, not whole-device memory. No labeled real soccer was available, and no accuracy, live-latency or best-model conclusion follows. CPU remains default.
 
 Small-ball size bins now apply to ground truth; slightly oversized valid predictions are not automatically missed, and predictions matched to larger labeled balls are ignored in that bin. Tracking identity metrics use players only, so ball samples do not distort visible-player-minute denominators. Tests cover these distinctions. Benchmark labels must explicitly declare the matching source profile.
+
+## Profile preprocessing and annotation provenance
+
+Schema 3 benchmarks accept the exported annotation bundle for a checksum-matched
+single video with zero source offset. Saved television corners/reference image
+activate rectification and the same movement guard used by analysis; detections
+are mapped back to displayed-original coordinates before comparison. Warmup and
+one-frame provider parity use that configured image. Without a TV setup, output
+explicitly says `original_image`; it cannot stand in for a rectified phone-TV run.
+The shared shot policy resets tracking on cuts and withholds reviewed replay,
+closeup, non-play and unknown intervals. Ground-truth player boxes are never
+applied as corrections to detector outputs during measurement.
+
+Annotation/reference hashes, review revision, preprocessing configuration, cut
+resets, movement-state counts and reviewed-withheld frames are recorded. Accuracy
+excludes explicitly reviewed non-play labels and reports their count. Eligible
+observable labels still count as misses when movement/obscuration withholds
+inference. `processed_frames` includes every sampled frame, while
+`inference_frames` counts detector calls during the measured pass (warmup is
+separate); compare both when exclusions are
+present. Stage timing includes shot/TV preprocessing and tracking, but excludes
+SQLite persistence, event generation, exports and UI. The recording soak measures
+the running application's persistence and saved-media delay separately.
+
+Exported segmented recordings use a segment-manifest checksum, which is not a
+single MP4 hash. Import a finalized evaluation copy as a new source and label that
+exact file, or explicitly rebase and review annotations against its checksum;
+never silently change checksums or offsets to make labels pass validation.
+
+[CLI smoke artifact](../validation/benchmark-profile-smoke-synthetic.json) contains
+100 actual HOG samples from the same generated demo with schema 3. It ran alongside
+other checks, so its timing is a smoke observation, not a controlled comparison.
+The TV coordinate/exclusion regression uses a detector test double on decoded
+generated media and is not evidence of neural soccer accuracy. Current validation
+is 55 backend tests and seven browser workflows; physical TV evaluation is open.
