@@ -1,0 +1,54 @@
+.export-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 23px;
+  margin-bottom: 25px;
+}
+.export-action {
+  padding: 28px;
+}
+.export-action .round-icon {
+  width: 44px;
+  height: 44px;
+  margin-bottom: 18px;
+}
+.export-action h3 {
+  font-size: 20px;
+}
+.export-action p {
+  font-size: 11px;
+  color: #8d9e7a;
+  margin: 13px 0 21px;
+  max-width: 370px;
+}
+.export-row {
+  display: flex;
+  gap: 16px;
+  padding: 20px;
+  border-bottom: 1px solid var(--line);
+  align-items: center;
+}
+.file-icon {
+  color: #8caa6c;
+  background: #f0f5e5;
+  width: 42px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+}
+.export-row strong {
+  font-size: 12px;
+  font-weight: 550;
+}
+.export-row small {
+  display: block;
+  font-size: 9px;
+  color: #99aa87;
+  margin-top: 5px;
+}
+.export-links {
+  display: flex;
+  gap: 7px;
+  margin-left: auto;
+}

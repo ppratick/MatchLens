@@ -1,0 +1,48 @@
+.table-wrap {
+  overflow: auto;
+}
+table {
+  border-collapse: collapse;
+  width: 100%;
+  text-align: left;
+}
+thead {
+  background: #f5f8ee;
+  color: #8c9c7c;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+}
+th {
+  font-weight: 500;
+}
+td,
+th {
+  padding: 15px 20px;
+  border-bottom: 1px solid #eaf0df;
+}
+td {
+  font-size: 11px;
+  color: #6d835c;
+}
+td small {
+  display: block;
+  font-size: 8px;
+  color: #acb69e;
+  margin: 5px 0 0 14px;
+}
+.player-dot {
+  width: 6px;
+  height: 6px;
+  display: inline-block;
+  border-radius: 50%;
+  margin-right: 8px;
+}
+.panel-header p {
+  font-size: 10px;
+  margin-top: 7px;
+}
+.muted {
+  color: #8d9b7f;
+  font-size: 12px;
+}

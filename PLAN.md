@@ -1,6 +1,6 @@
 # MatchLens — product and engineering plan
 
-Status: proposed for review; implementation has not started.
+Status: historical September 29 planning proposal. The engineering beta now exists; see `docs/STATUS.md` and `docs/COMPLETION_ROADMAP.md` for current scope and evidence.
 
 Prepared September 29, 2026. All performance and accuracy thresholds below are proposed acceptance targets, not measured results. No models, dependencies, benchmark media, or application code were installed or created during planning.
 

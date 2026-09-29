@@ -1,0 +1,51 @@
+.field-page {
+  display: grid;
+  grid-template-columns: 1fr 285px;
+  gap: 24px;
+}
+.large-pitch {
+  padding: 30px;
+}
+.panel-description {
+  padding: 18px 25px;
+  border-top: 1px solid var(--line);
+  color: #96a387;
+  font-size: 10px;
+  line-height: 1.7;
+}
+.segmented {
+  display: flex;
+  padding: 3px;
+  background: #f0f4e7;
+  border: 1px solid #e2e9d7;
+  border-radius: 5px;
+}
+.segmented button {
+  border: 0;
+  background: none;
+  padding: 5px 10px;
+  font-size: 9px;
+  color: #92a37c;
+  border-radius: 3px;
+}
+.segmented button.active {
+  background: #fffefa;
+  box-shadow: 0 1px 3px #30542810;
+  color: #53743c;
+}
+.field-settings {
+  padding: 24px;
+}
+.field-settings > h3 {
+  margin-bottom: 22px;
+}
+.field-settings p {
+  font-size: 10px;
+  color: #95a482;
+  margin: 10px 0 18px;
+}
+.field-settings > .notice {
+  font-size: 9px;
+  margin-top: 25px;
+  align-items: flex-start;
+}

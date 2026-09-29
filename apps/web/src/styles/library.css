@@ -1,0 +1,324 @@
+.library-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: #fffefa;
+  margin-bottom: 38px;
+  padding: 24px 0;
+}
+.library-stats > div {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 0 30px;
+  border-right: 1px solid var(--line);
+}
+.library-stats > div:last-child {
+  border: 0;
+}
+.stat-icon {
+  background: #f0f3e9;
+  border: 1px solid #e7ecdc;
+  width: 41px;
+  height: 43px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  color: #6c835d;
+}
+.library-stats strong {
+  display: block;
+  font-size: 26px;
+  font-weight: 520;
+  letter-spacing: -1px;
+  line-height: 1.2;
+}
+.library-stats strong small {
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+.library-stats div div > span {
+  display: block;
+  font-size: 10px;
+  color: #92a08b;
+  margin-top: 5px;
+}
+.section-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 21px;
+}
+.section-toolbar h2 {
+  display: flex;
+  gap: 11px;
+  align-items: center;
+  font-size: 17px;
+}
+.count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 21px;
+  height: 20px;
+  background: #edf1e4;
+  color: #6b7b60;
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 500;
+  padding: 0 5px;
+}
+.search {
+  display: flex;
+  align-items: center;
+  border: 1px solid #dfe6d7;
+  padding: 9px 11px;
+  gap: 9px;
+  border-radius: 6px;
+  background: #fffefa;
+  color: #879b78;
+}
+.search input {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  outline: none;
+  font-size: 10px;
+  width: 160px;
+  color: #324b2f;
+}
+.welcome-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.05fr;
+  gap: 24px;
+}
+.welcome {
+  padding: 42px 37px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fffefa;
+}
+.round-icon {
+  width: 51px;
+  height: 51px;
+  border: 1px solid #dfe8ce;
+  border-radius: 12px;
+  background: #eef4e2;
+  display: grid;
+  place-items: center;
+  color: #718e43;
+  margin-bottom: 24px;
+}
+.welcome h2 {
+  font-size: 25px;
+  letter-spacing: -0.7px;
+  font-weight: 550;
+}
+.welcome p {
+  font-size: 12px;
+  color: #87947c;
+  max-width: 310px;
+  margin: 16px 0 23px;
+}
+.welcome .text-button {
+  display: flex;
+  justify-content: flex-start;
+  margin: 17px 0 28px;
+}
+.supported {
+  font-size: 8px;
+  letter-spacing: 1.1px;
+  color: #9baa8e;
+  border-top: 1px solid var(--line);
+  padding-top: 19px;
+  line-height: 1.7;
+}
+.welcome-field {
+  background: #eaf0df;
+  border: 1px solid #dee6cf;
+  border-radius: 10px;
+  padding: 26px;
+  overflow: hidden;
+  position: relative;
+}
+.field-card-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 25px;
+  color: #6e8654;
+}
+.field-card-heading span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 8px;
+  letter-spacing: 1.1px;
+}
+.welcome-field .pitch {
+  transform: perspective(800px) rotateX(15deg) rotateZ(-6deg) scale(0.98);
+  box-shadow: 0 16px 22px #30452720;
+  margin: 4px 0 20px;
+}
+.pitch {
+  display: block;
+  width: 100%;
+  border-radius: 10px;
+}
+.field-caption {
+  border-top: 1px solid #d4dfc3;
+  padding: 19px 0 0;
+}
+.field-caption strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+.field-caption p {
+  font-size: 10px;
+  color: #899679;
+  margin-top: 5px;
+}
+.footnote {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-size: 10px;
+  color: #9aa58f;
+  margin-top: 36px;
+}
+.match-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 22px;
+}
+.match-card {
+  border: 1px solid #dfe6d6;
+  background: #fffefa;
+  border-radius: 10px;
+  overflow: hidden;
+  text-align: left;
+  padding: 0;
+  transition:
+    transform 0.18s,
+    box-shadow 0.18s;
+}
+.match-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 30px #1c382710;
+}
+.match-poster {
+  position: relative;
+  aspect-ratio: 16/9;
+  background: #1e3829;
+  overflow: hidden;
+}
+.match-poster > img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.match-poster .pitch {
+  border-radius: 0;
+}
+.poster-tag {
+  position: absolute;
+  top: 13px;
+  left: 13px;
+  background: #11271dba;
+  color: #e7efd9;
+  font-size: 8px;
+  padding: 5px 7px;
+  letter-spacing: 0.9px;
+  border-radius: 3px;
+}
+.poster-duration {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  padding: 4px 7px;
+  color: white;
+  font-size: 9px;
+  background: #12241cca;
+  border-radius: 3px;
+  font-variant-numeric: tabular-nums;
+}
+.poster-play {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  height: 40px;
+  width: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #f4f8e6c4;
+  color: #213b27;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.match-card:hover .poster-play {
+  opacity: 1;
+}
+.match-card-body {
+  padding: 19px 19px 0;
+}
+.card-date {
+  font-size: 9px;
+  color: #8c9b80;
+  margin-bottom: 8px;
+}
+.match-card h3 {
+  font-size: 17px;
+  margin-bottom: 8px;
+}
+.match-card p {
+  font-size: 11px;
+  color: #78906d;
+}
+.match-card p span {
+  color: #b1bba7;
+  font-size: 9px;
+  margin: 0 6px;
+}
+.card-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid var(--line);
+  margin-top: 19px;
+  padding: 15px 0;
+  color: #738969;
+}
+.card-bottom span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 9px;
+}
+.card-bottom .dot {
+  width: 5px;
+  height: 5px;
+}
+.new-match-card {
+  border: 1px dashed #c8d5b6;
+  background: #f1f5e9;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 245px;
+  color: #829872;
+}
+.new-match-card strong {
+  font-size: 12px;
+  color: #60734e;
+}
+.new-match-card > span {
+  font-size: 9px;
+}

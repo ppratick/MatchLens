@@ -47,3 +47,19 @@ Implemented and locally exercised on 2026-09-29. This is an engineering beta wit
 5. Add automatic field recalibration, robust camera motion/cut/replay handling, better identity association, jersey hints, and optional accelerator providers after profiling.
 6. Add installer/signing, schema migrations beyond version 1, full accessibility/device QA, backup tooling, larger-library performance, and operational hardening before calling it production-ready.
 7. Only then expand to synchronized multi-camera fusion and additional sport plugins with their own datasets, geometry, rules, and release gates.
+
+## Completion milestone 1 — frontend maintenance
+
+Verified again September 29: baseline 24 backend tests and all existing checks
+pass. Feature components now own library, playback, field, players, statistics,
+timeline dialogs, captures, pairing, exports, and setup. Shared tokens and ordered
+stylesheet imports preserve the exact production CSS hash. `main.tsx` is a small
+entry point, with app coordination and a typed workspace hook kept separately.
+No Tailwind, Redux, or new API-state dependency was necessary for this extraction.
+
+Two Playwright workflows pass against a server that creates its own disposable
+library. They cover synthetic playback, correction/undo/redo, a revision-consistent
+report, persisted review after page reload, player inspection, setup, creation, and
+dialog keyboard dismissal. Native Chrome and the actual localhost
+analysis/media-range/MP4/HTML/JSON/CSV path were also rechecked using temporary
+storage. Browser reload proves persisted HTTP state, not a process-restart test.

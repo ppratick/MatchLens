@@ -1,0 +1,24 @@
+.segment-select {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 15px;
+  border-top: 1px solid var(--line);
+}
+.segment-select label {
+  font-size: 9px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+.segment-select select {
+  font-size: 9px;
+  padding: 5px;
+  width: auto;
+}
+.segment-select span {
+  font-size: 8px;
+  color: #9aaa88;
+}

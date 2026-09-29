@@ -84,3 +84,16 @@ SQLite and files avoid a required database server, Redis, cloud queue, or accoun
 To add a detector, implement `Detector.detect` and register it in `detector_for`, then validate normalization and checkpoint provenance. To add a sport, implement its rules/summary plugin and add its event vocabulary, geometry, fixtures, and UI schema. The current validated request schema accepts soccer only; extension requires small integration changes, not replacing storage/capture/tracking infrastructure.
 
 Do not move code to C++ merely because it is Python. First collect detector, association, decoding, serialization, disk, and UI timings on full matches. Native extension boundaries belong around measured hotspots, retaining the same message contracts.
+
+## Frontend feature boundaries
+
+`main.tsx` mounts `App.tsx`. `hooks/useWorkspace.ts` owns typed workspace coordination
+and playback references; `features/` owns library, video, players, field,
+statistics, timeline, exports, capture and setup views. Components declare the
+workspace properties they consume. `shared/` contains constants and the accessible
+modal shell. Ordered `styles/` imports retain the original cascade, with tokens,
+shell, feature styles, motion, responsive rules, and live controls separated.
+
+`npm run test:e2e` launches installed Chrome through Playwright and creates a new
+temporary data root through `scripts/test_server.py`; it never reuses a server
+pointing at the user's library.
