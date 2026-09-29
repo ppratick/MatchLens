@@ -38,7 +38,7 @@ npm run build
 .venv/bin/python run.py serve
 ```
 
-Installation downloads dependencies and the ~20 MB model. Normal analysis does not download anything. An offline model can be supplied with `run.py model import --file /path/to/yolox_tiny.onnx`. Imported custom weights must use the supported YOLOX raw-output contract; they are shape-tested, not authenticated as official weights. The official download is SHA-256 pinned.
+Installation downloads dependencies and the ~20 MB model. Normal analysis does not download anything. Import offline weights from **Local setup**, or use `run.py model import --file /path/to/yolox_tiny.onnx`. Small raw-output weights use `--variant small` and can be selected separately in Analyze match. Imported custom weights must use the supported YOLOX raw-output contract; they are shape-tested, not authenticated as official weights. The official download is SHA-256 pinned.
 
 The source launcher explicitly adds `src` to Python's path. This avoids relying on editable `.pth` files in environments that mark hidden-directory contents with filesystem hidden flags.
 

@@ -134,9 +134,9 @@ export function BroadcastEvidence({
         </p>
       ))}
       <p className="muted">
-        Goal, shot, possession, turnover, pass and save definitions and
-        evaluation gates are in docs/EVENTS.md. Detection confidence is not
-        accuracy.
+        A suggestion never changes score. Review the action, timing and legality
+        before confirming. Other automatic event types remain disabled until
+        evaluated. Detection confidence is not accuracy.
       </p>
     </details>
   );

@@ -1,10 +1,13 @@
 import { ArrowRight, ShieldCheck } from "lucide-react";
-import { bytes } from "../../api";
+import { bytes, importModel } from "../../api";
 import type { Workspace } from "../../hooks/useWorkspace";
 export function Setup(
-  workspace: Pick<Workspace, "section" | "system" | "setSection">,
+  workspace: Pick<
+    Workspace,
+    "section" | "system" | "setSection" | "act" | "busy"
+  >,
 ) {
-  const { section, system, setSection } = workspace;
+  const { section, system, setSection, act, busy } = workspace;
 
   return (
     <>
@@ -50,10 +53,18 @@ export function Setup(
                       }
                     >
                       {system.model_ready
-                        ? "YOLOX installed locally"
+                        ? "Local model file present"
                         : "Model not installed"}
                     </span>
                   </dd>
+                  <dt>FFmpeg / FFprobe</dt>
+                  <dd>
+                    {system.ffmpeg && system.ffprobe
+                      ? "Available"
+                      : "Missing · install FFmpeg before media processing"}
+                  </dd>
+                  <dt>Free-space reserve</dt>
+                  <dd>{bytes(system.disk_reserve)}</dd>
                   <dt>Runtime providers</dt>
                   <dd>{system.providers.join(", ")}</dd>
                   <dt>Install / validate model</dt>
@@ -61,6 +72,43 @@ export function Setup(
                     <code>.venv/bin/python run.py model install</code>
                   </dd>
                 </dl>
+                <label>
+                  Import Tiny ONNX weights
+                  <input
+                    type="file"
+                    accept=".onnx"
+                    disabled={busy}
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f)
+                        act(async () => {
+                          await importModel(f, "tiny");
+                        }, "Tiny model imported and shape-tested; soccer accuracy remains unvalidated.");
+                    }}
+                  />
+                </label>
+                <label>
+                  Import Small ONNX weights
+                  <input
+                    type="file"
+                    accept=".onnx"
+                    disabled={busy}
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f)
+                        act(async () => {
+                          await importModel(f, "small");
+                        }, "Small model imported and shape-tested; soccer accuracy remains unvalidated.");
+                    }}
+                  />
+                </label>
+                <p>
+                  {system.small_model_ready
+                    ? "Small model file present"
+                    : "Small model not installed"}
+                  . CPU is default; CoreML is experimental. Provider
+                  availability does not prove graph placement.
+                </p>
                 <p>
                   No downloads happen during ordinary analysis. Offline model
                   import is also supported.
@@ -94,6 +142,51 @@ export function Setup(
                 >
                   Choose a match <ArrowRight size={15} />
                 </button>
+              </div>
+              <div className="panel settings-panel">
+                <h3>Source profiles and validation</h3>
+                {system.profiles?.map((p) => (
+                  <details key={p.id}>
+                    <summary>
+                      {p.name} · {p.status}
+                    </summary>
+                    <p>
+                      {p.capabilities.join(" · ") ||
+                        "No supported capabilities yet"}
+                    </p>
+                    <p>
+                      Preprocessing: {p.preprocessing.join(" · ") || "None"}
+                    </p>
+                    <p>Limitations: {p.limitations.join(" · ")}</p>
+                    <p>
+                      {p.evaluation.status} · {p.evaluation.sample_count}{" "}
+                      labeled soccer samples. Results stay separate for each
+                      profile.
+                    </p>
+                  </details>
+                ))}
+              </div>
+              <div className="panel settings-panel">
+                <h3>Permissions and recovery</h3>
+                <p>
+                  Screen capture opens the browser source picker. If denied,
+                  manually inspect System Settings → Privacy & Security → Screen
+                  & System Audio Recording for your browser. Camera/microphone
+                  permission is granted in the phone browser after HTTPS trust
+                  setup.
+                </p>
+                <p>
+                  No system settings change automatically. Finish and drain
+                  sender uploads before closing their page. After interruption,
+                  create a new pairing; review gaps and committed segments, then
+                  run and explicitly select an offline pass.
+                </p>
+                <p>
+                  Real Mac audio/permissions and iPhone 17 Pro Max capture
+                  remain unverified. Test two minutes of screen capture and five
+                  minutes facing the TV before a match; verify playable
+                  audio/video, marked gaps and offline review.
+                </p>
               </div>
             </div>
           )}

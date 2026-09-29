@@ -122,7 +122,14 @@ def class_metrics(predictions, labels, kind, tolerance, max_area=None):
                 max_area is None or (box[2] - box[0]) * (box[3] - box[1]) <= max_area
             )
 
-        p, g = [o for o in objects if selected(o)], [o for o in frame["objects"] if selected(o)]
+        p = [o for o in objects if o.get("kind", "person") == kind]
+        g = [o for o in frame["objects"] if selected(o)]
+        if max_area is not None:
+            # Size bins apply to truth, not predicted boxes. A slightly oversized
+            # prediction can still correctly localize a small ball at IoU >= .5.
+            larger = [o for o in frame["objects"] if o.get("kind", "person") == kind and not selected(o)]
+            ignored = {pi for pi, _ in match_boxes(p, larger)}
+            p = [o for pi, o in enumerate(p) if pi not in ignored]
         count = len(match_boxes(p, g))
         tp += count
         fp += len(p) - count
@@ -193,7 +200,7 @@ def benchmark_video(
     if labels:
         if labels.get("source_sha256", labels.get("video_sha256")) != checksum:
             raise ValueError("Annotation checksum does not match video")
-        if labels.get("source_profile", profile) != profile or labels.get("source_offset", 0) != 0:
+        if labels.get("source_profile") != profile or labels.get("source_offset", 0) != 0:
             raise ValueError("Benchmark labels must match this source profile and file-relative timeline")
     with tempfile.TemporaryDirectory(prefix="matchlens-profile-") as directory:
         start = time.monotonic()
@@ -289,7 +296,14 @@ def benchmark_video(
                     0.5 / fps,
                     max_area=32**2 / (metadata["width"] * metadata["height"]),
                 ),
-                "tracking": detection_metrics(frames, observable, tolerance=0.5 / fps),
+                "tracking": detection_metrics(
+                    [{**f, "tracks": [t for t in f["tracks"] if t["kind"] == "person"]} for f in frames],
+                    [
+                        {**f, "objects": [o for o in f["objects"] if o.get("kind", "person") == "person"]}
+                        for f in observable
+                    ],
+                    tolerance=0.5 / fps,
+                ),
                 "team": team_metrics(frames, observable, 0.5 / fps),
                 "labeled_frames": len(observable),
                 "unobservable_frames": len(labels["frames"]) - len(observable),

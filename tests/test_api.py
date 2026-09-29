@@ -122,3 +122,23 @@ def test_screen_ingest_is_loopback_session_protected_not_lan(store, match):
             ).status_code
             == 403
         )
+
+
+def test_model_import_auth_validation_and_old_weights_preserved(store):
+    original = store.settings.data_dir / "models/yolox_tiny.onnx"
+    original.write_bytes(b"previous-model-fixture")
+    with TestClient(create_app(store.settings, testing=True)) as client:
+        assert client.post("/api/models/import", content=b"not onnx").status_code == 403
+        token = client.get("/api/session").json()["token"]
+        headers = {"x-matchlens-token": token}
+        response = client.post("/api/models/import", headers=headers, content=b"not onnx")
+        assert response.status_code == 400 and "validation failed" in response.json()["detail"]
+        assert original.read_bytes() == b"previous-model-fixture"
+        assert not list((store.settings.data_dir / "temporary").iterdir())
+        assert (
+            client.post("/api/models/import?variant=other", headers=headers, content=b"x").status_code == 400
+        )
+        system = client.get("/api/system").json()
+        assert system["disk_reserve"] == 512 * 1024**2
+        assert any(p["status"] == "Coming later" for p in system["profiles"])
+        assert system["ffmpeg"] and system["ffprobe"]

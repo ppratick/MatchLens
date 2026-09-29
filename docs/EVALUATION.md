@@ -95,3 +95,19 @@ Browser tests use actual Chrome MediaRecorder encoding of generated canvas strea
 [Actual isolated volume result](../validation/disk-fault-synthetic.json) used a 768 MiB temporary HFS+ image and checks that its device differs from the host and its total capacity stays bounded. A generated recorder stopped at the normal 512 MiB reserve; prior segments retained their hashes and probeability. Filling only the owned test volume produced actual ENOSPC (errno 28) on derived writes. The harness frees its own filler and detaches the image in cleanup. Run `PYTHONPATH=src .venv/bin/python scripts/disk_fault.py --output /private/tmp/matchlens-disk-result.json` on macOS. Never point fault tests at the actual library.
 
 VFR regression uses real FFmpeg-generated irregular PTS, checking both 2/30-second and 5/30-second frame intervals against media PTS. A 3840×2160 source is preserved while decoded queued BGR analysis payloads are limited to 2560 pixels on the longest edge; oversized >40-million-pixel analysis frames are rejected. This bounds queue payloads rather than changing originals. Truncated-copy rejection leaves the external/preserved original checksum unchanged.
+
+## Two neural model comparison
+
+A subsequent [five-row measured matrix](../validation/provider-comparison-two-models-synthetic.json) supersedes the earlier missing-Small-weight rows. Official YOLOX Small was imported only into temporary validation storage; its source and SHA-256 are in THIRD_PARTY.md. Both neural adapters, CPU and CoreML, used the same SHA-matched synthetic 20-second fixture and 100 samples at 5 fps.
+
+| Detector/provider | Sampled frames/s | First inference (s) | Peak worker RSS (MiB) |
+|---|---:|---:|---:|
+| Tiny CPU | 22.01 | 0.040 | 233.25 |
+| Tiny CoreML | 70.51 | 0.131 | 250.59 |
+| Small CPU | 7.22 | 0.139 | 322.03 |
+| Small CoreML | 50.16 | 0.641 | 345.80 |
+| HOG CPU | 32.30 | 0.023 | 219.36 |
+
+ORT kernel traces recorded actual CoreML execution for both models. One-frame raw output parity passed at `rtol=atol=0.001`; maximum absolute differences were 0.00004297 (Tiny) and 0.00006294 (Small). Warmup/compilation caches were not forcibly cleared: Tiny's subsequent first inference is faster than the earlier 2.463-second run, so do not call this a controlled cold-start comparison. Profiling/parity add benchmark overhead; RSS is the benchmark worker, not whole-device memory. No labeled real soccer was available, and no accuracy, live-latency or best-model conclusion follows. CPU remains default.
+
+Small-ball size bins now apply to ground truth; slightly oversized valid predictions are not automatically missed, and predictions matched to larger labeled balls are ignored in that bin. Tracking identity metrics use players only, so ball samples do not distort visible-player-minute denominators. Tests cover these distinctions. Benchmark labels must explicitly declare the matching source profile.

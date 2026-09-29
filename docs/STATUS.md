@@ -27,7 +27,7 @@ Implemented and locally exercised on 2026-09-29. This is an engineering beta wit
 
 ## Verified in this environment
 
-- 47 backend domain/API/media tests pass. One upstream Starlette/httpx test-client deprecation warning remains; it is not a runtime test failure.
+- 50 backend domain/API/media tests pass. One upstream Starlette/httpx test-client deprecation warning remains; it is not a runtime test failure.
 - TypeScript checking and Vite production build pass.
 - A real localhost end-to-end run generated and analyzed the 20-second synthetic fixture, produced 14 tracks, served HTTP range video, and exported a playable MP4 plus HTML/JSON/CSV.
 - The same run showed score 0–1 and 85% sampled coverage after the fixture exclusion; these are scripted demonstration facts, not inferred real-match results.
@@ -70,7 +70,7 @@ Five explicit profiles are exposed via `/api/profiles`; sideline is **Coming lat
 
 Five Playwright workflows pass: review/pinned exports/persistence, setup/creation, box labels and TV corners, generated screen capture, and generated phone-TV capture. Actual browser encoding and playable saved segments are exercised. Native Chrome annotation layout was inspected. Backend transport tests cover duplicate/reordered chunks, sender epoch mismatch, status and suspension; screen ingest is protected on loopback and rejected by the LAN phone receiver.
 
-CoreML can be selected experimentally. Actual kernel placement, one-frame raw output parity, compilation/warmup, sustained short throughput and worker RSS are recorded in `validation/provider-comparison-synthetic.json`. CPU remains default. YOLOX Small has an adapter/import path but missing weights; no completed comparison or accuracy claim is made. See evaluation for measured values and limits.
+CoreML can be selected experimentally. Actual kernel placement, one-frame raw output parity, compilation/warmup, sustained short throughput and worker RSS are recorded in `validation/provider-comparison-synthetic.json`. CPU remains default. YOLOX Small now has a measured follow-up CPU/CoreML comparison; neither neural model has measured real-soccer accuracy. See evaluation for measured values and limits.
 
 Live overload policy reduces sampling, disables overlays, skips stale analysis with intervals, then pauses inference in recording-only mode. Original video is never deleted to reduce latency. Buffer pauses/suspension have explicit unknown-boundary gaps; exports cannot silently concatenate those timelines. A full 120-minute hardware soak, true device frame-drop counts and sensor-to-screen latency remain unverified.
 
@@ -83,3 +83,11 @@ Six browser workflows pass, including opt-in goal suggestions from manually read
 47 backend tests now include actual variable-frame-rate PTS sampling, 4K input with bounded 2560-pixel analysis payloads, original preservation, truncated-copy rejection, manual-cut/exclusion processing, source-specific replay exclusions and goal-evidence recomputation/undo. Committed segments carry SHA-256; analysis refuses changed preserved segments. Recording resolution is unchanged.
 
 The actual macOS disk-full harness mounted an owned 768 MiB temporary image. Capture stopped at the 512 MiB reserve, three earlier segments remained readable with unchanged hashes, and a later actual ENOSPC (errno 28) blocked derived writes. The image was detached; the host filesystem and user library were not filled or modified. Raw result: `validation/disk-fault-synthetic.json`.
+
+## Setup and second detector milestone
+
+The setup screen exposes all five source profiles and evaluation gates, FFmpeg/FFprobe availability, storage reserve, permission/recovery guidance, and local Tiny/Small ONNX import. Imports require the local session, are size-limited and shape-tested before replacing weights, and are serialized. Invalid files preserve previous weights; active jobs must finish or pause first. Both valid HTTP import and invalid import were checked against temporary storage. Native Chrome setup layout was inspected.
+
+The follow-up provider matrix measured Tiny CPU/CoreML at 22.01/70.51 sampled frames/s and Small at 7.22/50.16 on the same synthetic fixture. Both runtime traces and single-frame parity checks passed. This establishes short engineering throughput, not soccer accuracy or a preferred detector. Earlier missing-Small rows are historical. Event editors display definitions and unvalidated evaluation counts directly.
+
+Setup/provider milestone checks: 50 backend tests, seven Playwright workflows, Ruff lint/format, TypeScript, Vite build and frontend formatting pass. Browser tests include invalid ONNX import recovery and visible per-profile gates; a separate temporary localhost HTTP run successfully imported the official Small model.

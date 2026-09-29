@@ -97,6 +97,8 @@ def create_app(settings: Settings | None = None, testing=False):
         import onnxruntime
         import psutil
 
+        from .profiles import profiles
+
         return {
             "version": "0.1.0",
             "platform": platform.platform(),
@@ -105,6 +107,10 @@ def create_app(settings: Settings | None = None, testing=False):
             "memory_total": psutil.virtual_memory().total,
             "ffmpeg": shutil.which(settings.ffmpeg),
             "model_ready": (settings.data_dir / "models/yolox_tiny.onnx").exists(),
+            "small_model_ready": (settings.data_dir / "models/yolox_s.onnx").exists(),
+            "profiles": profiles(),
+            "ffprobe": shutil.which(settings.ffprobe),
+            "disk_reserve": settings.min_free_bytes,
             "providers": onnxruntime.get_available_providers(),
             "offline": True,
             "capabilities": {
@@ -113,9 +119,41 @@ def create_app(settings: Settings | None = None, testing=False):
                 "goals_shots_passes_saves": "manual review",
                 "distance_speed": "withheld",
                 "live_phone": "optional HTTPS receiver",
+                "sideline_recording": "Coming later",
+                "screen_capture": "browser picker; OS/audio validation required",
                 "multi_camera": "independent sources; manual offsets; no automatic fusion",
             },
         }
+
+    @app.post("/api/models/import")
+    async def model_import(request: Request, variant: str = "tiny"):
+        from starlette.concurrency import run_in_threadpool
+
+        from .cli import install_model
+
+        if variant not in ("tiny", "small"):
+            raise ValueError("Choose tiny or small raw-output YOLOX weights")
+        if any(j["status"] in ("queued", "running") for m in store.list() for j in store.jobs(m["id"])):
+            raise ValueError("Finish or pause active work before replacing a model")
+        staged = settings.data_dir / "temporary" / f"{uid()}.onnx"
+        size = 0
+        try:
+            with staged.open("wb") as out:
+                async for chunk in request.stream():
+                    size += len(chunk)
+                    if size > 100 * 1024**2:
+                        raise HTTPException(413, "Model exceeds supported 100 MiB import limit")
+                    settings.require_space(len(chunk))
+                    out.write(chunk)
+            try:
+                await run_in_threadpool(install_model, settings, staged, variant)
+            except Exception as exc:
+                raise ValueError(
+                    "Model validation failed; import a supported raw-output YOLOX ONNX file"
+                ) from exc
+            return {"variant": variant, "status": "installed and shape-tested", "accuracy": "unvalidated"}
+        finally:
+            staged.unlink(missing_ok=True)
 
     @app.get("/api/event-definitions")
     def event_definitions():

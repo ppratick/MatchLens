@@ -68,6 +68,9 @@ export function AnalyzeDialog(
                 <option value="yolox" disabled={!system?.model_ready}>
                   YOLOX tiny · pretrained local model
                 </option>
+                <option value="yolox_s" disabled={!system?.small_model_ready}>
+                  YOLOX Small · local, unvalidated
+                </option>
                 <option value="hog">
                   HOG · limited baseline, no model download
                 </option>

@@ -170,6 +170,19 @@ export type System = {
   disk_free: number;
   memory_total: number;
   model_ready: boolean;
+  small_model_ready: boolean;
+  ffmpeg: string | null;
+  ffprobe: string | null;
+  disk_reserve: number;
+  profiles: {
+    id: string;
+    name: string;
+    status: string;
+    capabilities: string[];
+    preprocessing: string[];
+    limitations: string[];
+    evaluation: { status: string; sample_count: number };
+  }[];
   providers: string[];
   platform: string;
   capabilities: Record<string, string>;

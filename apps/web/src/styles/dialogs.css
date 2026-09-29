@@ -230,3 +230,14 @@ textarea {
 .spin {
   animation: spin 1s linear infinite;
 }
+
+.annotation-actions {
+  align-items: center;
+}
+.settings-panel details {
+  margin: 12px 0;
+}
+.settings-panel summary {
+  cursor: pointer;
+  line-height: 1.6;
+}

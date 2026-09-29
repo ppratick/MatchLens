@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+import { api } from "../../api";
 import { Check } from "lucide-react";
 import { labels } from "../../shared/constants";
 import { ModalShell } from "../../shared/ModalShell";
@@ -27,6 +29,21 @@ export function EventDialog(
     time,
     busy,
   } = workspace;
+  const [definitions, setDefinitions] = useState<
+    {
+      kind: string;
+      definition: string;
+      automatic_status: string;
+      reliability: string;
+      sample_count: number;
+    }[]
+  >([]);
+  useEffect(() => {
+    if (modal === "event")
+      api<typeof definitions>("/event-definitions")
+        .then(setDefinitions)
+        .catch(() => {});
+  }, [modal]);
   if (!detail) return null;
   return (
     <>
@@ -135,6 +152,17 @@ export function EventDialog(
                 defaultValue={eventEdit?.note || ""}
               />
             </label>
+            <details>
+              <summary>Event definitions and reliability</summary>
+              {definitions.map((d) => (
+                <p key={d.kind}>
+                  <strong>{labels[d.kind] || d.kind}</strong> · {d.definition}
+                  <br />
+                  {d.automatic_status} · {d.reliability} · {d.sample_count}{" "}
+                  evaluated samples
+                </p>
+              ))}
+            </details>
             {eventEdit?.evidence && (
               <p className="muted">Evidence: {eventEdit.evidence}</p>
             )}

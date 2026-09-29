@@ -257,14 +257,12 @@ test("reviewed scoreboard and replay propose a goal without changing score", asy
       exact: true,
     })
     .click();
-  const intervals = page
-    .locator("details")
-    .filter({
-      has: page.getByText(
-        "Camera cuts, replay, non-play, and unknown intervals",
-        { exact: true },
-      ),
-    });
+  const intervals = page.locator("details").filter({
+    has: page.getByText(
+      "Camera cuts, replay, non-play, and unknown intervals",
+      { exact: true },
+    ),
+  });
   await intervals.getByLabel("Start", { exact: true }).fill("3");
   await intervals.getByLabel("End", { exact: true }).fill("4");
   await intervals
@@ -281,4 +279,29 @@ test("reviewed scoreboard and replay propose a goal without changing score", asy
   await page.getByLabel("Review status").selectOption("rejected");
   await page.getByRole("button", { name: "Save moment" }).click();
   await expect(page.locator(".score-number")).toHaveText("0:0");
+});
+
+test("setup exposes profile gates and rejects an invalid offline model", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Local setup", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Source profiles and validation" }),
+  ).toBeVisible();
+  await page.getByText("Physical sideline recording", { exact: false }).click();
+  await expect(
+    page.getByText("No supported capabilities yet", { exact: true }),
+  ).toBeVisible();
+  await page
+    .getByLabel("Import Tiny ONNX weights")
+    .setInputFiles({
+      name: "invalid.onnx",
+      mimeType: "application/octet-stream",
+      buffer: Buffer.from("not an ONNX model"),
+    });
+  await expect(page.getByText(/Model validation failed/)).toBeVisible();
+  await expect(
+    page.getByText("Model not installed", { exact: true }),
+  ).toBeVisible();
 });

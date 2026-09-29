@@ -107,3 +107,15 @@ export async function sendCapture(
     );
   return result;
 }
+
+export async function importModel(file: File, variant: "tiny" | "small") {
+  const response = await fetch(`/api/models/import?variant=${variant}`, {
+    method: "POST",
+    body: file,
+    headers: { "X-MatchLens-Token": token },
+    signal: AbortSignal.timeout(120000),
+  });
+  const result = await response.json();
+  if (!response.ok) throw Error(result.detail || "Model import failed");
+  return result;
+}

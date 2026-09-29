@@ -298,7 +298,7 @@ export function AnnotationDialog({
               onChange={(e) =>
                 setObjects(
                   objects.map((v, j) =>
-                    j === i ? { ...v, id: e.target.value } : v,
+                    j === i ? { ...v, id: e.target.value, track_id: null } : v,
                   ),
                 )
               }
@@ -433,7 +433,7 @@ export function AnnotationDialog({
           change={(broadcast) => setBundle({ ...bundle, broadcast })}
         />
       )}
-      <div className="modal-actions">
+      <div className="modal-actions annotation-actions">
         <label>
           Import labels
           <input

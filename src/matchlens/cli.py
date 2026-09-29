@@ -16,6 +16,14 @@ MODEL_SHA256 = "427cc366d34e27ff7a03e2899b5e3671425c262ea2291f88bb942bc1cc70b0f7
 
 
 def install_model(settings, source=None, variant="tiny"):
+    from filelock import FileLock
+
+    settings.initialize()
+    with FileLock(str(settings.data_dir / "models/install.lock"), timeout=120):
+        return _install_model(settings, source, variant)
+
+
+def _install_model(settings, source=None, variant="tiny"):
     if variant == "small" and not source:
         raise ValueError(
             "Import a locally licensed raw-output YOLOX small ONNX export with --file; automatic small-model download is not configured"
