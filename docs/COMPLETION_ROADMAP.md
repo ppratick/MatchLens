@@ -61,10 +61,33 @@ status updates, and a commit. No remote push. All automation uses temporary data
 Optional SAM 2, Tauri, WebRTC, and alternative observation databases require a
 measured improvement; do not add them solely to expand the stack.
 
-## Progress after capture and review integration
+## Current completion audit
 
-Milestones 0–2 are implemented and checked. Milestones 3–4 have generated-browser transport/playback tests, TV geometry/movement tests, and manual desktop UI inspection; actual Mac picker permissions/audio and iPhone 17 Pro Max remain unverified. Milestone 6 has CPU/CoreML runtime traces, single-frame parity, warmup/throughput/RSS measurements and a configurable default-CPU path; alternative neural weights and labeled profile evaluation remain gates. Milestone 7 has a corrected 180-second audio/video recovery soak, five critical browser workflows and 40 backend tests. Milestone 5 and additional reliability/packaging work remain to be implemented; external validation does not excuse those independent tasks.
+Milestones 0–7 have engineering implementations, relevant automated checks,
+desktop UI inspection, committed measurements and local commits. This does not
+close milestone 8 or certify the product. Current checks are 52 backend tests,
+seven Playwright workflows, Ruff lint/format, TypeScript, production build and
+frontend/phone formatting. Every automated library was temporary.
 
-Milestone 5 now has reviewed scoreboard regions/score-clock evidence, opt-in two-signal goal suggestions, documented event definitions and unknown per-class metrics, reviewed cut/exclusion snapshots and human-only confirmation. OCR and additional event classifiers stay disabled pending evaluation. Milestone 7 now includes a real disk-reserve/ENOSPC test in a bounded disposable image, VFR timestamps, 4K payload limits, truncated-source rejection and six browser workflows; 47 backend tests pass.
+| Definition-of-complete item | Current evidence | Remaining gate |
+|---|---|---|
+| 1. Mac capture with delayed analysis | Generated browser MediaRecorder → authenticated receiver → playable segments; live samples and separate offline pass; inference-crash soak | Actual display/window picker, permissions, available audio and recording continuity on this Mac |
+| 2. iPhone-TV pairing/record/reconnect | Ordered idempotent chunks, sender epochs, upload/finalization retry, reload rejection, status/health/gaps tested | iPhone 17 Pro Max Safari, trusted HTTPS, Wi-Fi interruption, suspension and audio sync |
+| 3. Rectified television image | Four-corner sender/review UI, perspective warp/inverse coordinates, static-surrounding movement guard tested | Physical TV glare/flicker/moire/occlusion and mount movement |
+| 4. Offline tracks/teams/events/stats/clips/report | Synthetic and generated media workflows pass; explicit run selection; conservative evidence-backed suggestions and confirmed exports | Real-soccer usefulness and accuracy; unsupported event classes remain disabled |
+| 5. Clear uncertainty | Profile limits, unknown/contested possession, experimental event definitions, Coming later sideline and withheld metric distances | Review wording during physical-device use |
+| 6. Efficient corrections | Drawn boxes/ball, identity/team, events, exclusions, TV corners and partial-field landmark UI; revisioned exchange | Real correction-time baseline; no SAM 2 speedup claim |
+| 7. Persisted consistent corrections | SQLite revisions, undo/redo, reopened store tests, browser reload, pinned report/export tests | Longer real-session recovery and backup usability |
+| 8. Measured detection/tracking accuracy | Per-profile checksum-aware labels and precision/recall/identity/team metric harness | No permitted labeled real soccer footage exists yet; accuracy remains unknown |
+| 9. CPU/CoreML measurements | Tiny, Small and HOG matrix; neural CPU/CoreML runtime placement, one-frame parity, first inference, short sustained speed and RSS | Full-corpus parity, controlled cold start and sustained live hardware validation; CPU stays default |
+| 10. Measured integrity/delay/resources | 180-second generated audio/video soak survives analysis kill; bounded queue/overload tests; owned-volume ENOSPC test | Actual source latency/drop accounting, full-match resource stability and 120-minute hardware soak |
+| 11. Critical automated workflows | 52 backend tests and seven actual browser workflows, including live/offline selection and retry recovery | Real OS permission prompts and phone browsers cannot be replaced by generated streams |
+| 12. Reproducibility/history/demo | Preserved baseline, feature commits, launcher/doctor/model import, polished labeled synthetic demo and updated docs | Complete external release evidence before calling portfolio version finished |
+| 13. Sideline Coming later | Profile and setup/source UI explicitly withhold current support | Future work only |
+| 14. Free/local workflow | SQLite/files, local models, loopback administrative API, narrow paired receiver, no account/API subscription | Dependencies/models must be installed once; no cloud processing is required |
 
-Setup now shows diagnostics, per-profile limits and local model import with failure preservation. CPU/CoreML runs for both official Tiny and Small are measured in a follow-up matrix; a default/accuracy decision still requires labeled permitted footage. SAM 2 is deferred because no real correction-time baseline or labeled propagation set is available; Tauri/WebRTC/DuckDB are deferred because no measured deficiency justifies replacing the working launcher/transport/SQLite. These are deliberate validation gates, not completed integrations.
+SAM 2 is deferred because no real correction-time baseline or labeled propagation
+set is available. Tauri/WebRTC/DuckDB are deferred because no measured deficiency
+justifies replacing the working launcher/transport/SQLite. These are deliberate
+validation gates, not completed integrations. The next work is the short Mac and
+phone procedures above, then a labeled permitted corpus and longer hardware soak.

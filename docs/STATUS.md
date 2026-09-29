@@ -10,9 +10,9 @@ Implemented and locally exercised on 2026-09-29. This is an engineering beta wit
 | Local pretrained detection | YOLOX tiny ONNX person/sports-ball boxes; HOG fallback | Real soccer accuracy not measured; tiny/occluded ball is a known weakness |
 | Player tracking | Time-aware Kalman + two-stage association; checkpoints; cut resets | No global re-ID, jersey OCR, guaranteed persistent identity, or cross-camera fusion |
 | Teams and roles | Color-cluster hints; manual team/player/goalkeeper/official assignment | Named-team and official classification are not automatic |
-| Field mapping | Four-corner UI and multi-landmark API, intervals, homography, visible-polygon limits | No automatic field-line/goal-structure detector; moving-camera calibration remains manual |
-| Timeline and statistics | Confirmed goals/shots/passes/turnovers/saves/possession, score, unknown possession, reviewed-player counts and observed time | Events beyond control proposals require human entry/review; no exact distance/speed or xG |
-| Event detection | Optional experimental ball-control interval proposals | No trained goal/shot/pass/save/turnover classifier; proposals never become facts automatically |
+| Field mapping | Four-corner and paired-landmark UI/API, explicit validity intervals, homography, visible-polygon limits | No automatic field-line/goal-structure detector; moving-camera calibration remains manual |
+| Timeline and statistics | Confirmed goals/shots/passes/turnovers/saves/possession, score, unknown/contested possession, reviewed-player counts and observed time | Automatic proposals require human review; no exact distance/speed or xG |
+| Event detection | Experimental ball-control proposals and opt-in goal suggestions from reviewed scoreboard increments plus replay evidence | No trained goal/shot/pass/save/turnover classifier; proposals never become facts automatically |
 | Corrections | Drawn player/ball frame labels, checksummed annotation exchange, event/identity/team edits, field/TV calibration, exclusions, undo/redo | Identity split/link is a review alias/interval operation, not raw tracker retraining; raw track-list summaries are fragment-oriented |
 | Video capture | Browser display/window picker, independent authenticated ingest/FFmpeg recording, audio availability, indexed devices and streams | Real hardware permissions/device behavior not tested; one active capture slot |
 | Phone streaming | Separate HTTPS paired receiver, sender epochs, idempotent ordered chunks, health/status, manual TV alignment and movement guard | Requires trusted certificate and foreground phone; real iOS/Android not certified |
@@ -27,7 +27,7 @@ Implemented and locally exercised on 2026-09-29. This is an engineering beta wit
 
 ## Verified in this environment
 
-- 50 backend domain/API/media tests pass. One upstream Starlette/httpx test-client deprecation warning remains; it is not a runtime test failure.
+- 52 backend domain/API/media tests and seven Playwright workflows pass. One upstream Starlette/httpx test-client deprecation warning remains; it is not a runtime test failure.
 - TypeScript checking and Vite production build pass.
 - A real localhost end-to-end run generated and analyzed the 20-second synthetic fixture, produced 14 tracks, served HTTP range video, and exported a playable MP4 plus HTML/JSON/CSV.
 - The same run showed score 0–1 and 85% sampled coverage after the fixture exclusion; these are scripted demonstration facts, not inferred real-match results.
@@ -44,7 +44,7 @@ Implemented and locally exercised on 2026-09-29. This is an engineering beta wit
 2. Test real phone HTTPS recording, stream disconnect/reconnection, OS capture permissions, and a 120-minute recording/analysis soak. Improve seamless multi-segment playback and exact gap/drop accounting from those measurements.
 3. Train/adapt ball, official, goal/field landmark, and sport-event models against the corpus. Add conservative evidence-backed event proposals class by class with measured precision/recall and calibrated reliability.
 4. Improve identity corrections into explicit fragment graphs and add reviewed player aggregates/track navigation across changing raw runs. Add comprehensive property-based tests.
-5. Add automatic field recalibration, robust camera motion/cut/replay handling, better identity association, jersey hints, and optional accelerator providers after profiling.
+5. Evaluate automatic field recalibration, robust camera motion/cut/replay handling, better identity association and jersey hints. The optional CoreML path has measured short-run speed/placement/parity; full-corpus parity and live hardware validation remain gates.
 6. Add installer/signing, schema migrations beyond version 1, full accessibility/device QA, backup tooling, larger-library performance, and operational hardening before calling it production-ready.
 7. Only then expand to synchronized multi-camera fusion and additional sport plugins with their own datasets, geometry, rules, and release gates.
 
@@ -91,3 +91,32 @@ The setup screen exposes all five source profiles and evaluation gates, FFmpeg/F
 The follow-up provider matrix measured Tiny CPU/CoreML at 22.01/70.51 sampled frames/s and Small at 7.22/50.16 on the same synthetic fixture. Both runtime traces and single-frame parity checks passed. This establishes short engineering throughput, not soccer accuracy or a preferred detector. Earlier missing-Small rows are historical. Event editors display definitions and unvalidated evaluation counts directly.
 
 Setup/provider milestone checks: 50 backend tests, seven Playwright workflows, Ruff lint/format, TypeScript, Vite build and frontend formatting pass. Browser tests include invalid ONNX import recovery and visible per-profile gates; a separate temporary localhost HTTP run successfully imported the official Small model.
+
+## Sender recovery and spatial review milestone
+
+Current checks: 52 backend tests, seven Playwright workflows, Ruff lint/format,
+TypeScript, Vite production build, frontend and phone-sender formatting pass.
+Native Chrome partial-landmark calibration layout was inspected in the isolated
+library. Historical counts above describe their respective milestones.
+
+Phone finalization now retries transient failures even after the upload queue
+drains. A recording-worker failure prevents automatic capture resumption;
+terminal receiver refusals retain the unsent queue with a raw-tail download.
+The tail alone is not a complete playable recording. A reload cannot reuse a
+pairing with an existing epoch, and closing before finalization warns the user.
+The generated phone browser test interrupts both upload and finalization,
+recovers to playable saved media, then verifies the used-epoch reload guard.
+
+Field review supports at least four paired visible landmarks for partial views.
+The default validity is one second from the paused media timestamp; users may
+extend only through a verified stationary shot. Reviewed cuts invalidate older
+spatial mappings immediately. Unknown possession retains explicitly contested
+time as a visible subset and never assigns it to either team. Distance and speed
+remain withheld. The browser suite saves partial-landmark calibration and runs
+a full offline pass after generated live screen capture, verifying that selection
+stays on the prior run until the user explicitly selects the new version.
+
+Model imports now enforce the adapter's static float32 image input and 80-class
+raw-grid output contract before inference. Both official Tiny and Small imports
+passed against disposable storage. No real soccer labels, physical phone capture,
+OS permission/audio certification, or 120-minute hardware soak were supplied.

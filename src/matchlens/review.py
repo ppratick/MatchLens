@@ -142,7 +142,7 @@ def snapshot(store: Store, match_id: str) -> dict:
             interval
             for bundle in state.get("annotations", {}).values()
             for interval in bundle.get("intervals", [])
-            if interval["kind"] in ("replay", "closeup", "non_play", "unknown")
+            if interval["kind"] in ("replay", "closeup", "non_play", "unknown", "contested")
         )
     stats = SPORTS[info["sport"]].summarize(
         [e for e in events if not e.get("excluded")], info["duration"], exclusions

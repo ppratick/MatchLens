@@ -123,6 +123,11 @@ export function Statistics(
                 }}
               />
             </div>
+            <small>
+              Unknown includes{" "}
+              {detail.statistics.possession.contested_seconds ?? 0} s contested;
+              neither team is assigned control.
+            </small>
             <div className="team-legend">
               <span>
                 <i style={{ background: teamColor.home }} />

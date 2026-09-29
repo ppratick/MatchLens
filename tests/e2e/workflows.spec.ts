@@ -137,6 +137,33 @@ test("label boxes and TV corners persist as review revisions", async ({
     });
   await page.getByRole("button", { name: "Save calibration" }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
+  await page
+    .getByRole("button", { name: "Calibrate field", exact: true })
+    .click();
+  await page.getByLabel("Use paired landmarks for a partial field").check();
+  const field = page.getByAltText("Select visible field landmarks");
+  const size = await field.boundingBox();
+  for (const [x, y] of [
+    [0, 0],
+    [1, 0],
+    [1, 1],
+    [0, 1],
+  ]) {
+    await page
+      .getByLabel("Next landmark field X", { exact: false })
+      .fill(String(x));
+    await page
+      .getByLabel("Next landmark field Y", { exact: false })
+      .fill(String(y));
+    await field.click({
+      position: {
+        x: size!.width * (0.1 + x * 0.8),
+        y: size!.height * (0.1 + y * 0.8),
+      },
+    });
+  }
+  await page.getByRole("button", { name: "Save calibration" }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
 });
 
 test("generated screen picker stream records playable segments on localhost", async ({
@@ -157,11 +184,25 @@ test("generated screen picker stream records playable segments on localhost", as
   await expect(page.locator(".job-inline")).toContainText("Recording", {
     timeout: 20000,
   });
+  await page.keyboard.press("Escape");
+  await page
+    .getByRole("button", { name: "Analyze match", exact: true })
+    .click();
+  await page.getByLabel("Detection engine").selectOption("hog");
+  await page
+    .getByRole("button", { name: "Start analysis", exact: true })
+    .click();
+  await expect(
+    page.locator(".job-inline").filter({ hasText: "Analyzing" }),
+  ).toContainText("Analyzing", {
+    timeout: 20000,
+  });
   await page.waitForTimeout(6500);
   await page
     .getByRole("button", { name: "Finish screen recording", exact: true })
     .first()
     .click();
+  await page.getByRole("button", { name: "Capture", exact: true }).click();
   await expect(page.getByText(/Received bytes finalized/)).toBeVisible({
     timeout: 30000,
   });
@@ -171,6 +212,76 @@ test("generated screen picker stream records playable segments on localhost", as
   await expect(
     page.getByRole("button", { name: "Pause video", exact: true }),
   ).toBeVisible();
+  const rows = await (await page.request.get("/api/matches")).json();
+  const match = rows.find(
+    (m: { title: string }) => m.title === "Generated screen transport",
+  );
+  const load = async () =>
+    await (await page.request.get(`/api/matches/${match.id}`)).json();
+  await expect
+    .poll(
+      async () => {
+        const d = await load();
+        return (
+          d.jobs.find(
+            (j: { kind: string; config: { live: boolean } }) =>
+              j.kind === "analysis" && j.config.live,
+          )?.metrics?.processed_frames || 0
+        );
+      },
+      { timeout: 30000 },
+    )
+    .toBeGreaterThan(0);
+  await expect
+    .poll(
+      async () => {
+        const d = await load();
+        return d.jobs
+          .filter(
+            (j: { kind: string }) =>
+              j.kind === "capture" || j.kind === "analysis",
+          )
+          .every((j: { status: string }) => j.status === "complete");
+      },
+      { timeout: 30000 },
+    )
+    .toBe(true);
+  const before = await load();
+  const sid = before.sources[0].id;
+  const selected = before.active_runs[sid];
+  await page
+    .getByRole("button", { name: "Analyze match", exact: true })
+    .click();
+  await page.getByLabel("Detection engine").selectOption("hog");
+  await page.getByLabel("Analysis sampling").selectOption("10");
+  await page
+    .getByRole("button", { name: "Start analysis", exact: true })
+    .click();
+  await expect
+    .poll(
+      async () => {
+        const d = await load();
+        return d.jobs.some(
+          (j: { kind: string; status: string; config: { live: boolean } }) =>
+            j.kind === "analysis" && !j.config.live && j.status === "complete",
+        );
+      },
+      { timeout: 30000 },
+    )
+    .toBe(true);
+  const after = await load();
+  const offline = after.jobs.find(
+    (j: { kind: string; config: { live: boolean } }) =>
+      j.kind === "analysis" && !j.config.live,
+  );
+  expect(after.active_runs[sid]).toBe(selected);
+  await page
+    .getByText("Source alignment & analysis versions", { exact: true })
+    .click();
+  await page.getByLabel("Active analysis").selectOption(offline.id);
+  await expect
+    .poll(async () => (await load()).active_runs[sid])
+    .toBe(offline.id);
 });
 
 test("generated phone camera aligns TV and finalizes received original", async ({
@@ -188,6 +299,20 @@ test("generated phone camera aligns TV and finalizes received original", async (
   const pair = await (
     await request.post(`/api/matches/${match.id}/pair`, { headers })
   ).json();
+  let interruptedUpload = false,
+    interruptedFinish = false;
+  await page.route("**/ingest/**", async (route) => {
+    if (!interruptedUpload) {
+      interruptedUpload = true;
+      await route.abort("failed");
+    } else await route.continue();
+  });
+  await page.route("**/finish/**", async (route) => {
+    if (!interruptedFinish) {
+      interruptedFinish = true;
+      await route.abort("failed");
+    } else await route.continue();
+  });
   await generatedStream(page, "getUserMedia");
   await page.goto(`http://127.0.0.1:8878/${pair.fragment}`);
   await page.getByRole("button", { name: "Start camera preview" }).click();
@@ -229,6 +354,14 @@ test("generated phone camera aligns TV and finalizes received original", async (
     { headers: { Range: "bytes=0-99" } },
   );
   expect(media.status()).toBe(206);
+  expect(interruptedUpload && interruptedFinish).toBe(true);
+  await page.reload();
+  await expect(page.locator("#status")).toContainText(
+    "already contains a recorder epoch",
+  );
+  await expect(
+    page.getByRole("button", { name: "Start camera preview" }),
+  ).toBeDisabled();
 });
 
 test("reviewed scoreboard and replay propose a goal without changing score", async ({
@@ -293,13 +426,11 @@ test("setup exposes profile gates and rejects an invalid offline model", async (
   await expect(
     page.getByText("No supported capabilities yet", { exact: true }),
   ).toBeVisible();
-  await page
-    .getByLabel("Import Tiny ONNX weights")
-    .setInputFiles({
-      name: "invalid.onnx",
-      mimeType: "application/octet-stream",
-      buffer: Buffer.from("not an ONNX model"),
-    });
+  await page.getByLabel("Import Tiny ONNX weights").setInputFiles({
+    name: "invalid.onnx",
+    mimeType: "application/octet-stream",
+    buffer: Buffer.from("not an ONNX model"),
+  });
   await expect(page.getByText(/Model validation failed/)).toBeVisible();
   await expect(
     page.getByText("Model not installed", { exact: true }),

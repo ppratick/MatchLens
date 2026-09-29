@@ -55,8 +55,24 @@ class YOLOX:
         if provider not in self.session.get_providers():
             raise ValueError(f"{provider} initialization fell back; it is not executing as requested")
         self.initialization_seconds = time.monotonic() - started
-        self.input = self.session.get_inputs()[0]
+        inputs, outputs = self.session.get_inputs(), self.session.get_outputs()
+        if len(inputs) != 1 or len(outputs) != 1:
+            raise ValueError("YOLOX adapter requires one image input and one raw output")
+        self.input = inputs[0]
+        shape = self.input.shape
+        if (
+            len(shape) != 4
+            or shape[:2] != [1, 3]
+            or self.input.type != "tensor(float)"
+            or not all(isinstance(v, int) and 256 <= v <= 1280 and v % 32 == 0 for v in shape[2:])
+        ):
+            raise ValueError(
+                "YOLOX adapter requires static float32 1x3xHxW, 256–1280 pixels in multiples of 32"
+            )
         self.height, self.width = (int(self.input.shape[-2]), int(self.input.shape[-1]))
+        count = sum((self.height // stride) * (self.width // stride) for stride in (8, 16, 32))
+        if outputs[0].shape != [1, count, 85]:
+            raise ValueError("YOLOX adapter requires raw grid output with 80 COCO classes")
         grids, strides = [], []
         for stride in (8, 16, 32):
             y, x = np.meshgrid(

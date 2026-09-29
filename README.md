@@ -47,8 +47,8 @@ The source launcher explicitly adds `src` to Python's path. This avoids relying 
 1. Create a match and import an MP4/MOV/MKV/WebM or other FFmpeg-readable video. Import copies the original; analysis never overwrites it. Unsupported browser codecs queue a separate playback proxy.
 2. Choose **Analyze match**, YOLOX, and 5 sampled frames/second. This is analysis sampling, not recording frame rate. HOG is a limited fallback; the synthetic detector is restricted to synthetic matches.
 3. Inspect the video and player tracks. Assign reviewed teams/names/roles. Model color clusters are suggestions, not named teams. Track IDs do not prove persistent player identity.
-4. For a stationary full-pitch view, calibrate four known corners. The API also accepts four or more paired image/field landmarks for partial views. Camera cuts invalidate previous calibration. Distance and speed are deliberately withheld.
-5. Add/review events. Only confirmed, nonexcluded timeline events contribute to score and counts. Confirming a goal, shot, or save queues a surrounding clip. Unknown possession remains in the denominator.
+4. For a stationary full-pitch view, calibrate four known corners; for partial views, enable paired landmarks and mark at least four known image/field correspondences. Set the verified stationary validity interval (one second by default). Camera cuts invalidate previous calibration. Distance and speed are deliberately withheld.
+5. Add/review events. Only confirmed, nonexcluded timeline events contribute to score and counts. Confirming a goal, shot, or save queues a surrounding clip. Unknown possession, including contested time, remains in the denominator.
 6. Export a custom clip, annotated clip, team/player reel, or self-contained HTML report with JSON/CSV. Print the HTML report to PDF if needed. Export manifests retain the review revision; later corrections do not silently change old exports.
 
 Keyboard shortcuts in the studio: Space play/pause, Left/Right seek 5 seconds, E add event. Escape closes dialogs.

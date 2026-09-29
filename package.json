@@ -7,8 +7,8 @@
     "dev": "vite --host 127.0.0.1",
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
-    "format": "prettier --write apps/web/src apps/web/index.html package.json tsconfig.json vite.config.ts",
-    "format:check": "prettier --check apps/web/src apps/web/index.html package.json tsconfig.json vite.config.ts",
+    "format": "prettier --write apps/web/src apps/web/index.html src/matchlens/sender package.json tsconfig.json vite.config.ts",
+    "format:check": "prettier --check apps/web/src apps/web/index.html src/matchlens/sender package.json tsconfig.json vite.config.ts",
     "test:e2e": "playwright test"
   },
   "dependencies": {

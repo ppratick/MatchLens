@@ -130,6 +130,7 @@ export type Statistics = {
     seconds: Record<string, number>;
     percent: Record<Team, number | null>;
     denominator: number;
+    contested_seconds: number;
     reliability: string;
   };
 };

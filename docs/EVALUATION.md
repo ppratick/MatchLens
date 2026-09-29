@@ -86,6 +86,14 @@ The CLI requires `--profile`, supports `--provider cpu|coreml`, and `--compare` 
 
 Browser tests use actual Chrome MediaRecorder encoding of generated canvas streams, then authenticated chunks, receiver segmentation, TV alignment, and range playback. Physical getDisplayMedia permissions and iPhone camera behavior remain unverified. Annotation exchange includes checksum/profile/offset/revision, boxes/ball/team/identity, exclusions, events, TV reference/corners, and field landmarks; import is one reversible revision.
 
+The seven current browser workflows also cover interrupted phone upload and
+finalization with successful retry, rejection of an old pairing after reload,
+paired partial-field landmarks, and a full offline pass after live screen
+analysis whose version is activated only by explicit selection. Field mappings
+default to a one-second reviewed validity interval; reviewed cuts immediately
+invalidate older mappings. These verify engineering review behavior, not
+physical field-coordinate accuracy or real-device interoperability.
+
 ## Short recording/recovery soak
 
 [Raw 180-second synthetic soak](../validation/soak-synthetic-180s.json) records in real time while a separate actual YOLOX CPU worker analyzes. An intentional analysis kill midway did not stop capture: 45 committed segments before the crash, 91 afterward, 181.355 seconds preserved. All video segments decoded, every segment contained generated audio, and segment timeline gaps were empty (0.1-second continuity tolerance). Measurements include worker/FFmpeg/decoder RSS, disk bytes, saved-media analysis delay and states. The harness had exposed an incorrect generated-audio input map; this artifact is the corrected rerun. No hardware compatibility, A/V sync accuracy, real-world frame-drop count, or 120-minute qualification is implied. Run `PYTHONPATH=src .venv/bin/python scripts/soak.py --seconds 7200 --model /path/to/yolox_tiny.onnx --output /path/to/result.json` for a longer generated engineering soak; the hardware gate is separate.

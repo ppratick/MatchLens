@@ -267,19 +267,21 @@ export function useWorkspace() {
     }
   };
   const calibrate = () => {
-    if (!video.current || !source) return;
+    if (!video.current || !source) return false;
     const canvas = document.createElement("canvas");
     canvas.width = video.current.videoWidth;
     canvas.height = video.current.videoHeight;
     if (!canvas.width) {
       notify("Load a video frame first");
-      return;
+      return false;
     }
     canvas.getContext("2d")?.drawImage(video.current, 0, 0);
     setCalibrationImage(canvas.toDataURL());
     setCalibrationPoints([]);
     video.current.pause();
+    setTime(video.current.currentTime + mediaOffset);
     setModal("calibration");
+    return true;
   };
   const eventAction = (e: MatchEvent, status: string) =>
     act(() =>

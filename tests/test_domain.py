@@ -160,3 +160,31 @@ def test_csv_formula_strings_are_neutralized():
         "player": "'@name",
         "time": -2,
     }
+
+
+def test_contested_intervals_and_conflicting_owners_stay_unknown():
+    events = [Event(kind="possession", start=0, end=10, team="home").model_dump()]
+    result = Soccer().summarize(events, 10, [{"kind": "contested", "start": 2, "end": 4}])
+    assert result["possession"]["seconds"]["home"] == 8
+    assert result["possession"]["seconds"]["unknown"] == 2
+    assert result["possession"]["contested_seconds"] == 2
+    assert result["possession"]["denominator"] == 10
+    events.append(Event(kind="possession", start=4, end=6, team="away").model_dump())
+    conflicting = Soccer().summarize(events, 10, [])
+    assert conflicting["possession"]["contested_seconds"] == 2
+    assert conflicting["possession"]["seconds"]["unknown"] == 2
+
+
+def test_reviewed_cut_immediately_invalidates_old_spatial_mapping():
+    state = json.loads(encode(EMPTY_REVIEW))
+    state["calibrations"] = [calibration()]
+    state["annotations"] = {"camera": {"intervals": [{"kind": "camera_cut", "start": 2, "end": 2.1}]}}
+    frame = {
+        "time": 3,
+        "source_id": "camera",
+        "last_cut": -1,
+        "tracks": [{"id": "p", "box": [0.4, 0.3, 0.6, 0.5], "kind": "person"}],
+    }
+    assert apply_review(frame, state)["tracks"][0]["field"] is None
+    state["calibrations"][0]["start"] = 2.5
+    assert apply_review(frame, state)["tracks"][0]["field"] == pytest.approx([0.5, 0.5])

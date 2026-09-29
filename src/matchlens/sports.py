@@ -33,13 +33,19 @@ class Soccer:
             boundaries.update([max(0, min(duration, e["start"])), max(0, min(duration, e["end"]))])
         times = sorted(boundaries)
         control = {"home": 0.0, "away": 0.0, "unknown": 0.0, "excluded": 0.0}
+        contested_seconds = 0.0
         for a, b in zip(times, times[1:]):
             mid = (a + b) / 2
-            if any(e["start"] <= mid < e["end"] for e in exclusions):
+            if any(e.get("kind") != "contested" and e["start"] <= mid < e["end"] for e in exclusions):
                 control["excluded"] += b - a
                 continue
             owners = {e["team"] for e in possession if e["start"] <= mid < e["end"]}
-            owner = next(iter(owners)) if len(owners) == 1 else "unknown"
+            contested = len(owners - {"unknown"}) > 1 or any(
+                e.get("kind") == "contested" and e["start"] <= mid < e["end"] for e in exclusions
+            )
+            owner = next(iter(owners)) if len(owners) == 1 and not contested else "unknown"
+            if contested:
+                contested_seconds += b - a
             control[owner] += b - a
         denominator = duration - control["excluded"]
         return {
@@ -49,6 +55,7 @@ class Soccer:
             "possession": {
                 "seconds": control,
                 "denominator": denominator,
+                "contested_seconds": contested_seconds,
                 "percent": {
                     t: round(control[t] / denominator * 100, 1) if denominator else None
                     for t in ("home", "away", "unknown")

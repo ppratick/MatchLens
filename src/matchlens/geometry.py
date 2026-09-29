@@ -85,8 +85,17 @@ def apply_review(frame: dict, review: dict) -> dict:
         ),
         None,
     )
+    reviewed_cut = max(
+        (
+            i["start"]
+            for i in annotation.get("intervals", [])
+            if i["kind"] == "camera_cut" and i["start"] <= t
+        ),
+        default=-1,
+    )
     if calibration and (
-        frame.get("television_valid") is False or frame.get("last_cut", -1) > calibration["start"]
+        frame.get("television_valid") is False
+        or max(frame.get("last_cut", -1), reviewed_cut) > calibration["start"]
     ):
         calibration = None
     for track in result["tracks"]:

@@ -195,8 +195,7 @@ export function VideoPlayer(
               <button
                 className="button small"
                 onClick={() => {
-                  calibrate();
-                  setModal("television");
+                  if (calibrate()) setModal("television");
                 }}
               >
                 Set television corners
