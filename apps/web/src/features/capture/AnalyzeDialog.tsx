@@ -33,7 +33,7 @@ export function AnalyzeDialog(
       {modal === "analyze" && detail && (
         <ModalShell
           title="Look closer at your game."
-          subtitle="Analysis runs locally. Your original recording is never modified."
+          subtitle="Analysis runs locally. Your original recording is never modified. Select a completed new version explicitly in Source alignment & analysis versions."
           onClose={close}
         >
           <form
@@ -45,6 +45,7 @@ export function AnalyzeDialog(
                   source_id: sourceId,
                   sample_fps: Number(f.get("fps")),
                   detector: f.get("detector"),
+                  provider: f.get("provider"),
                   experimental_events: f.get("events") === "on",
                   live: recording,
                 });
@@ -75,6 +76,20 @@ export function AnalyzeDialog(
                     Synthetic fixture detector (demo only)
                   </option>
                 )}
+              </select>
+            </label>
+            <label>
+              Execution provider
+              <select name="provider" defaultValue="cpu">
+                <option value="cpu">CPU · default</option>
+                <option
+                  value="coreml"
+                  disabled={
+                    !system?.providers.includes("CoreMLExecutionProvider")
+                  }
+                >
+                  CoreML · experimental, ONNX only
+                </option>
               </select>
             </label>
             <label>

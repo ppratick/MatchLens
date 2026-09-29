@@ -108,7 +108,16 @@ def effective_events(store: Store, match_id: str, state: dict) -> list[dict]:
                     event.update(team=label["team"], player=label["player"])
         if any(
             x.get("exclude_events", True) and x["start"] <= event["start"] < x["end"]
-            for x in state["exclusions"]
+            for x in [
+                *state["exclusions"],
+                *[
+                    i
+                    for sid, bundle in state.get("annotations", {}).items()
+                    for i in bundle.get("intervals", [])
+                    if i["kind"] in ("replay", "closeup", "non_play", "unknown")
+                    and event.get("source_id") == sid
+                ],
+            ]
         ):
             event["excluded"] = True
         result.append(event)
@@ -119,8 +128,16 @@ def snapshot(store: Store, match_id: str) -> dict:
     info = store.get(match_id)
     revision, state = store.review(match_id)
     events = effective_events(store, match_id, state)
+    exclusions = list(state["exclusions"])
+    if len(store.sources(match_id)) == 1:
+        exclusions.extend(
+            interval
+            for bundle in state.get("annotations", {}).values()
+            for interval in bundle.get("intervals", [])
+            if interval["kind"] in ("replay", "closeup", "non_play", "unknown")
+        )
     stats = SPORTS[info["sport"]].summarize(
-        [e for e in events if not e.get("excluded")], info["duration"], state["exclusions"]
+        [e for e in events if not e.get("excluded")], info["duration"], exclusions
     )
     tracks, observed_intervals, warnings = {}, [], set()
     player_intervals = {}

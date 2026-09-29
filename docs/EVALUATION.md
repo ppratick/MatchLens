@@ -34,7 +34,7 @@ These are observations from one short run, not a performance guarantee. Re-run o
 
 ## Bring a real benchmark corpus
 
-Real-match footage and annotations were not provided. Before claiming soccer accuracy, obtain recordings with permission and create a frozen corpus containing stationary sideline views, partial fields, small distant balls, similar kits, officials, shadows, night lighting, occlusion, camera motion, broadcasts/replays, and game-screen captures. Keep all frames from a match in one split; split by venue/camera/team/day to avoid leakage. Keep physical and rendered games separate.
+Real-match footage and annotations were not provided. Before claiming soccer accuracy, obtain recordings with permission and create a frozen corpus containing broadcast wide views, partial fields, small distant balls, similar kits, officials, shadows, night lighting, occlusion, camera motion, broadcasts/replays, and game-screen captures. Keep all frames from a match in one split; split by venue/camera/team/day to avoid leakage. Keep broadcast, screen, phone-TV, synthetic, and future sideline domains separate. Physical sideline is Coming later.
 
 Maintain a manifest with recording permission/license, source hash, duration/PTS, resolution, camera profile, capture conditions, and annotation version. Include at least a short smoke set, a 90–120-minute soak recording, and a held-out accuracy set. Annotate players/ball/officials, stable identities, visible landmarks, event intervals, and explicitly unobservable periods. Double-review ambiguous events.
 
@@ -42,7 +42,9 @@ Annotation JSON accepted by `benchmark`:
 
 ```json
 {
-  "video_sha256": "ACTUAL_SHA256",
+  "source_sha256": "ACTUAL_SHA256",
+  "source_profile": "broadcast",
+  "source_offset": 0,
   "frames": [
     {
       "time": 1.2,
@@ -67,3 +69,23 @@ Boxes are normalized displayed-image coordinates after rotation. The CLI compute
 8. **UI/device:** Real iOS Safari/Android Chrome HTTPS capture, macOS permissions, keyboard/accessibility audit, narrow displays, lengthy timelines, large libraries, and seek/playback through multiple segments. Desktop native Chrome has been manually inspected; device certification is not implied.
 
 Release thresholds should be based on this corpus and agreed product promises. Do not silently substitute synthetic success for real-soccer performance.
+
+## Provider comparison, September 29
+
+[Raw measured matrix](../validation/provider-comparison-synthetic.json) uses one checksummed, locally generated 20-second 960×540 fixture, 100 samples at 5 fps, fresh processes, actual detector/tracker and ORT profiling. No third-party video was downloaded. These are synthetic engineering throughput measurements, not soccer accuracy or sensor-to-screen latency.
+
+| Detector/provider | Sustained sampled frames/s | Init / first inference (s) | Peak worker RSS (MiB) | Runtime placement |
+|---|---:|---:|---:|---|
+| YOLOX Tiny CPU | 23.11 | 0.019 / 0.040 | 235.19 | CPU kernel trace |
+| YOLOX Tiny CoreML | 69.41 | 0.427 / 2.463 | 257.52 | CoreML kernel trace |
+| HOG CPU | 32.60 | 0.086 / 0.021 | 219.47 | OpenCV CPU |
+
+CoreML raw outputs matched CPU on one decoded frame (`rtol=atol=0.001`, maximum absolute difference 0.00004297). This does not qualify full-corpus numerical parity, accuracy, or sustained live acceleration. CPU stays default. The initial sandboxed CoreML run failed to create a compilation directory; the reported matrix is the subsequent successful local run. Profiling adds overhead. YOLOX Small's raw-output adapter and matrix entries exist, but both small-model rows failed explicitly because no small weights were installed; this is not a completed neural-model comparison.
+
+The CLI requires `--profile`, supports `--provider cpu|coreml`, and `--compare` uses isolated processes. Labels produce separate player, ball, small-ball, tracking and team-cluster metrics. Team metrics describe permutation-invariant color-cluster agreement and unknown coverage, not automatic named-team accuracy. A small model may be imported with `model import --variant small --file ...`; validate its license and raw-output contract before use.
+
+Browser tests use actual Chrome MediaRecorder encoding of generated canvas streams, then authenticated chunks, receiver segmentation, TV alignment, and range playback. Physical getDisplayMedia permissions and iPhone camera behavior remain unverified. Annotation exchange includes checksum/profile/offset/revision, boxes/ball/team/identity, exclusions, events, TV reference/corners, and field landmarks; import is one reversible revision.
+
+## Short recording/recovery soak
+
+[Raw 180-second synthetic soak](../validation/soak-synthetic-180s.json) records in real time while a separate actual YOLOX CPU worker analyzes. An intentional analysis kill midway did not stop capture: 45 committed segments before the crash, 91 afterward, 181.355 seconds preserved. All video segments decoded, every segment contained generated audio, and segment timeline gaps were empty (0.1-second continuity tolerance). Measurements include worker/FFmpeg/decoder RSS, disk bytes, saved-media analysis delay and states. The harness had exposed an incorrect generated-audio input map; this artifact is the corrected rerun. No hardware compatibility, A/V sync accuracy, real-world frame-drop count, or 120-minute qualification is implied. Run `PYTHONPATH=src .venv/bin/python scripts/soak.py --seconds 7200 --model /path/to/yolox_tiny.onnx --output /path/to/result.json` for a longer generated engineering soak; the hardware gate is separate.

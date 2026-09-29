@@ -160,7 +160,8 @@ export function VideoPlayer(
                     )
                     .map((j) => (
                       <option value={j.id} key={j.id}>
-                        {j.id.slice(0, 8)} · {j.status} ·{" "}
+                        {j.id.slice(0, 8)} ·{" "}
+                        {j.config.live ? "live" : "offline"} · {j.status} ·{" "}
                         {String(j.config.detector)}
                       </option>
                     ))}
@@ -190,6 +191,15 @@ export function VideoPlayer(
                 }}
               >
                 Set source offset ({source.offset}s)
+              </button>
+              <button
+                className="button small"
+                onClick={() => {
+                  calibrate();
+                  setModal("television");
+                }}
+              >
+                Set television corners
               </button>
               <small>
                 Changing analysis versions can orphan corrections tied to old
@@ -361,7 +371,30 @@ export function VideoPlayer(
             </div>
           )}
         </div>
+        {recording && (
+          <div className="panel-description">
+            Buffered recording timestamp: {time.toFixed(2)} s · delayed analysis
+            timestamp:{" "}
+            {latestAnalysis?.checkpoint?.time?.toFixed(2) ??
+              "not yet available"}{" "}
+            s · analysis {latestAnalysis?.status ?? "off"} · sampling{" "}
+            {latestAnalysis?.metrics?.sample_fps ?? "—"} fps · committed{" "}
+            {(source?.bytes ?? 0) / 1000000} MB ·{" "}
+            {source?.has_audio ? "audio recorded" : "audio not confirmed"}.
+            Incoming preview and buffered feed have no analysis overlay.
+          </div>
+        )}
         <div className="video-controls">
+          <button
+            className="button small"
+            disabled={!source || source.status === "recording"}
+            onClick={() => {
+              video.current?.pause();
+              setModal("annotate");
+            }}
+          >
+            Label frame
+          </button>
           <button
             className="icon-button play"
             aria-label={playing ? "Pause video" : "Play video"}

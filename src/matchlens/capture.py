@@ -63,7 +63,7 @@ def capture(store: Store, match_id: str, job: dict):
         "-map",
         "0:v:0",
         "-map",
-        "0:a?",
+        "1:a:0" if kind == "test" else "0:a?",
         "-c:v",
         "libx264",
         "-preset",
@@ -170,6 +170,20 @@ def capture(store: Store, match_id: str, job: dict):
                     codec=meta["codec"],
                     has_audio=meta["has_audio"],
                 )
+            if kind == "phone":
+                pair_path = store.settings.data_dir / "pairing" / f"{config['pair_id']}.json"
+                pairing = json.loads(pair_path.read_text()) if pair_path.exists() else {}
+                source["sender_health"] = pairing.get("health_events", [])
+                source["gaps"] = [
+                    {
+                        **e,
+                        "reason": "Sender pause/suspension: wall-time gap; precise media boundary unavailable",
+                    }
+                    for e in source["sender_health"]
+                    if e["state"] != "resumed"
+                ]
+                source["received_bytes"] = pairing.get("bytes", 0)
+                source["last_received"] = pairing.get("last_received")
             source["bytes"] = sum(store.path(match_id, s["path"]).stat().st_size for s in source["segments"])
             atomic_json(root / "manifest.json", source)
             store.put_source(match_id, source)

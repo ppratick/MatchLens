@@ -9,10 +9,18 @@ import httpx
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--url", default="http://127.0.0.1:8765")
+    parser.add_argument("--url", required=True, help="Explicit isolated localhost server")
     args = parser.parse_args()
     with httpx.Client(base_url=args.url, timeout=30) as client:
-        token = client.get("/api/session").json()["token"]
+        session = client.get("/api/session").json()
+        import tempfile
+        from pathlib import Path
+
+        directory = Path(session["data_dir"]).resolve()
+        allowed = [Path("/private/tmp"), Path("/tmp").resolve(), Path(tempfile.gettempdir()).resolve()]
+        if not any(directory.is_relative_to(root) and directory != root for root in allowed):
+            raise ValueError("Verification requires a disposable library under a temporary directory")
+        token = session["token"]
         client.headers["x-matchlens-token"] = token
         matches = client.get("/api/matches").json()
         demo = next((m for m in matches if m["profile"] == "synthetic"), None)

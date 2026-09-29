@@ -97,3 +97,11 @@ shell, feature styles, motion, responsive rules, and live controls separated.
 `npm run test:e2e` launches installed Chrome through Playwright and creates a new
 temporary data root through `scripts/test_server.py`; it never reuses a server
 pointing at the user's library.
+
+## Source-aware capture and review
+
+Screen source selection happens through desktop `getDisplayMedia` and a MediaRecorder sender independent of inference. Its receiver is mounted at `/screen-ingest` on the protected loopback application, with both the local session token and pairing secret. The LAN HTTPS receiver accepts phone-purpose pairs only and has no administrative routes. Each sender epoch has ordered idempotent chunks, fsynced byte receipt, separately committed playable segments, and status/health records. Exact suspension gap boundaries remain unknown; exports conservatively reject crossing them.
+
+TV setup stores normalized corners plus an immutable reference frame/hash in a review revision. An analysis run snapshots this setup and revision. ORB movement matching uses surroundings outside the TV; unavailable/obscured/moved outcomes stay visible, and detected movement disables inference until a new setup/run. Detection uses rectified images, but boxes return to displayed-original coordinates for consistent review/export. Recording is unchanged.
+
+Annotation exchange is strict and checksum/profile/offset-bound. It includes full-frame objects, non-play/unknown intervals, manual events, field landmarks and portable TV references. One import becomes one undoable review revision. Subsequent analysis does not automatically select its run. Provider/model/setup/source provenance is checkpointed and checked on resume; CoreML remains optional and CPU default.

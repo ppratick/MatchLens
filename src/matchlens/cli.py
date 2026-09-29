@@ -15,9 +15,13 @@ MODEL_URL = "https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1
 MODEL_SHA256 = "427cc366d34e27ff7a03e2899b5e3671425c262ea2291f88bb942bc1cc70b0f7"
 
 
-def install_model(settings, source=None):
+def install_model(settings, source=None, variant="tiny"):
+    if variant == "small" and not source:
+        raise ValueError(
+            "Import a locally licensed raw-output YOLOX small ONNX export with --file; automatic small-model download is not configured"
+        )
     settings.initialize()
-    target = settings.data_dir / "models/yolox_tiny.onnx"
+    target = settings.data_dir / ("models/yolox_s.onnx" if variant == "small" else "models/yolox_tiny.onnx")
     staged = target.with_suffix(".download")
     try:
         if source:
@@ -41,7 +45,7 @@ def install_model(settings, source=None):
         atomic_json(
             target.with_suffix(".json"),
             {
-                "name": "yolox-tiny",
+                "name": "yolox-small" if variant == "small" else "yolox-tiny",
                 "source": str(source) if source else MODEL_URL,
                 "sha256": checksum,
                 "code_license": "Apache-2.0",
@@ -65,6 +69,7 @@ def main():
     model = sub.add_parser("model", help="Install or import local model")
     model.add_argument("action", choices=["install", "import"])
     model.add_argument("--file")
+    model.add_argument("--variant", choices=["tiny", "small"], default="tiny")
     sub.add_parser("doctor", help="Inspect dependencies and local capabilities")
     sub.add_parser("devices", help="List macOS capture devices; may trigger OS permission prompts")
     receiver = sub.add_parser(
@@ -79,7 +84,14 @@ def main():
     benchmark.add_argument("--fps", type=float, default=5)
     benchmark.add_argument("--output", required=True)
     benchmark.add_argument("--annotations", help="Optional MatchLens evaluation JSON")
-    benchmark.add_argument("--detector", choices=["yolox", "hog"], default="yolox")
+    benchmark.add_argument("--detector", choices=["yolox", "yolox_s", "hog"], default="yolox")
+    benchmark.add_argument("--provider", choices=["cpu", "coreml"], default="cpu")
+    benchmark.add_argument(
+        "--profile", choices=["broadcast", "screen", "phone_tv", "synthetic", "sideline"], required=True
+    )
+    benchmark.add_argument(
+        "--compare", action="store_true", help="Fresh-process comparison of tiny/small/HOG and CPU/CoreML"
+    )
     args = parser.parse_args()
     settings = Settings.load(args.data_dir)
     if args.command == "serve":
@@ -92,7 +104,7 @@ def main():
     elif args.command == "model":
         if args.action == "import" and not args.file:
             parser.error("model import requires --file")
-        install_model(settings, args.file)
+        install_model(settings, args.file, args.variant)
     elif args.command == "doctor":
         import platform
 
@@ -132,7 +144,20 @@ def main():
     elif args.command == "benchmark":
         from .evaluation import benchmark_video
 
-        result = benchmark_video(settings, Path(args.video), args.fps, args.detector, args.annotations)
+        if args.compare:
+            from .evaluation import compare_providers
+
+            result = compare_providers(settings, Path(args.video), args.fps, args.annotations, args.profile)
+        else:
+            result = benchmark_video(
+                settings,
+                Path(args.video),
+                args.fps,
+                args.detector,
+                args.annotations,
+                provider=args.provider,
+                profile=args.profile,
+            )
         atomic_json(Path(args.output), result)
         print(json.dumps(result, indent=2))
 

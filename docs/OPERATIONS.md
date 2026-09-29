@@ -16,7 +16,7 @@ The receiver is optional and must be explicitly started. Its camera page require
 2. Obtain a locally trusted TLS certificate whose SAN includes the computer's LAN hostname or IP. A local development CA tool or your existing certificate tooling can do this without a paid service. Certificate generation/trust installation is not automated by MatchLens.
 3. Start `.venv/bin/python run.py receiver --cert /path/to/cert.pem --key /path/to/key.pem`. Use `--host COMPUTER-LAN-IP` to bind a specific interface instead of all interfaces.
 4. In the match, choose **Capture → Phone on your network**. Open the displayed URL, replacing `COMPUTER-IP` with the actual host covered by your certificate. The fragment contains a temporary secret; do not share it.
-5. Grant camera/microphone access on the phone. Start the camera, keep the page foregrounded, and verify saved segments appear on the computer. Press **Finish recording** and wait for all chunks to drain before closing the page.
+5. Grant camera/microphone access on the phone. Start the camera in landscape, mark all four TV corners clockwise, save alignment, then start recording. Keep the page foregrounded and verify committed saved segments appear on the computer; chunk receipts alone do not establish playable recording. Press **Finish recording** and wait for all chunks to drain before closing the page.
 
 Pairings expire after four hours. Only the secret hash is persisted in pairing metadata. The receiver accepts ordered chunks with retry acknowledgment and durable committed byte offsets. It cannot browse/export/delete matches. The application API stays on localhost:8765.
 
@@ -29,7 +29,7 @@ Do not expose the receiver through internet port forwarding. Stop it when not in
 | Failure | What is retained | Recovery |
 |---|---|---|
 | Analysis exception/kill | Copied original and all committed analysis batches | Resume the failed/paused job; last incomplete batch is replayed |
-| UI/browser closed | Worker processes and local files | Reopen the interface |
+| UI closed / sender closed | Workers and committed files remain; browser sender input ends | Reopen UI; finalize/drain sender before closing; use a new pairing after sender reload |
 | UI server restarted | Independent workers and job records | Supervisor checks PID creation time and reconnects |
 | Stream ends/disconnects | Previously closed segments and received phone bytes | Inspect the gap; reconnect as another source and set its explicit timeline offset before analysis |
 | Recorder killed/power loss | Previously committed segments | Unclosed MP4 tail may be unreadable; no lossless recovery claim |
@@ -60,3 +60,13 @@ For a consistent manual backup, stop capture/analysis, stop the server, and copy
 **Delete match** stops its owned workers, removes the match's managed recordings, proxies, tracks, review database, reports, logs, and pairing metadata, and removes the library entry. External originals, downloaded exports, browser downloads, system backups, and other copies are outside its ownership and remain. Shared model weights are retained for other matches.
 
 Deletion is logical filesystem deletion, not a claim of forensic erasure from SSDs, APFS snapshots, or backups. SQLite secure-delete is enabled and match deletion requests a library WAL checkpoint/truncation. Use OS disk encryption and your backup/retention controls if forensic confidentiality is required. No sharing or remote deletion service is implemented.
+
+## Screen, television, and version selection
+
+**Capture → Choose display or window** invokes the browser's visible picker. A denied or cancelled request does not imply OS permission was granted. Follow the displayed System Settings instructions yourself. No system setting is changed automatically. Audio is captured only if the selected stream actually supplies an audio track. Protected broadcasts may be blank. Keep the sender tab open; the UI server and recording worker remain separate from inference.
+
+TV rectification uses original-image corners and an immutable reference frame. Movement checking matches static surroundings outside the television; too few features produce an explicit unavailable warning, not a claim of stable alignment. Detected movement latches invalidation and withholds detection; obscuration withholds uncertain samples. Re-mark corners and create a new analysis run after movement. Glare, blur, low-light, and orientation hints are heuristics; flicker, rolling bands, moiré, extreme viewing angle, and audio synchronization still need device validation.
+
+Each sender session uses a fresh epoch. Network retries reuse the same chunk sequence and bytes. Reload/restart needs a new pairing/source, so separate timelines are never silently joined. Buffer pauses and suspension create identified interruptions with unknown exact media boundaries. Clips across unknown-boundary source gaps are conservatively rejected. Previous committed media and received bytes remain available. The buffer has a 24 MiB pause threshold, with possible overshoot by a final browser-emitted blob; it is not a hard allocation ceiling.
+
+Offline/live runs stay separate. Open **Source alignment & analysis versions** and explicitly choose the new completed offline version. Existing identity corrections remain attached to their original track IDs.

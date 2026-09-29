@@ -79,12 +79,14 @@ export function NewDialog(
               <label>
                 Recording profile
                 <select name="profile">
-                  <option value="wide">Wide-view soccer</option>
-                  <option value="phone">Stationary phone</option>
                   <option value="broadcast">
-                    Broadcast / screen recording
+                    Imported broadcast recording
                   </option>
-                  <option value="game">Video game (unvalidated)</option>
+                  <option value="screen">Direct Mac screen capture</option>
+                  <option value="phone_tv">Phone recording a television</option>
+                  <option value="sideline" disabled>
+                    Physical sideline recording · Coming later
+                  </option>
                 </select>
               </label>
             </div>

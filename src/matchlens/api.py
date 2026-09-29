@@ -16,6 +16,7 @@ from fastapi.staticfiles import StaticFiles
 from filelock import FileLock
 from pydantic import ValidationError
 
+from .annotations import AnnotationBundle, export_annotations, import_annotations
 from .config import Settings
 from .domain import AnalysisRequest, CaptureRequest, ClipRequest, Correction, MatchCreate, uid
 from .geometry import apply_review
@@ -116,6 +117,12 @@ def create_app(settings: Settings | None = None, testing=False):
             },
         }
 
+    @app.get("/api/profiles")
+    def source_profiles():
+        from .profiles import profiles
+
+        return profiles()
+
     @app.get("/api/matches")
     def matches():
         return store.list()
@@ -192,7 +199,13 @@ def create_app(settings: Settings | None = None, testing=False):
         source = store.source(match_id, body.source_id)
         if body.detector == "synthetic" and store.get(match_id)["profile"] != "synthetic":
             raise ValueError("Synthetic detector is restricted to synthetic fixtures")
-        if body.detector == "yolox" and not (settings.data_dir / "models/yolox_tiny.onnx").exists():
+        if (
+            body.detector in ("yolox", "yolox_s")
+            and not (
+                settings.data_dir
+                / ("models/yolox_s.onnx" if body.detector == "yolox_s" else "models/yolox_tiny.onnx")
+            ).exists()
+        ):
             raise ValueError("Install the local model with: matchlens model install")
         if any(
             j["kind"] == "analysis" and j["status"] in ("queued", "running") for j in store.jobs(match_id)
@@ -200,6 +213,9 @@ def create_app(settings: Settings | None = None, testing=False):
             raise ValueError("Pause the existing analysis first")
         config = body.model_dump()
         config["source_id"] = source["id"]
+        revision, review = store.review(match_id)
+        config["television"] = review.get("television", {}).get(source["id"])
+        config["setup_revision"] = revision
         return supervisor.enqueue(match_id, "analysis", config)
 
     @app.post("/api/matches/{match_id}/runs/{run_id}/activate")
@@ -238,6 +254,28 @@ def create_app(settings: Settings | None = None, testing=False):
         if action == "resume":
             return supervisor.resume(match_id, job_id)
         raise ValueError("Unknown job action")
+
+    @app.post("/api/matches/{match_id}/sources/{source_id}/television")
+    def television_setup(match_id: str, source_id: str, body: dict):
+        from .television import save_setup
+
+        result = save_setup(store, match_id, source_id, body)
+        cache.pop(match_id, None)
+        return result
+
+    @app.get("/api/annotation-schema")
+    def annotation_schema():
+        return AnnotationBundle.model_json_schema()
+
+    @app.get("/api/matches/{match_id}/sources/{source_id}/annotations")
+    def annotations_export(match_id: str, source_id: str):
+        return export_annotations(store, match_id, source_id)
+
+    @app.post("/api/matches/{match_id}/sources/{source_id}/annotations")
+    def annotations_import(match_id: str, source_id: str, body: AnnotationBundle, revision: int):
+        result = import_annotations(store, match_id, source_id, body, revision)
+        cache.pop(match_id, None)
+        return {"revision": result}
 
     @app.get("/api/matches/{match_id}/frames")
     def frames(match_id: str, at: float = 0, source_id: str | None = None):
@@ -290,6 +328,11 @@ def create_app(settings: Settings | None = None, testing=False):
             "id": uid(),
             "name": f"{body.kind.title()} recording",
             "kind": body.kind,
+            "profile": "synthetic"
+            if body.kind == "test"
+            else "screen"
+            if body.kind == "screen"
+            else "broadcast",
             "offset": 0,
             "status": "recording",
             "duration": 0,
@@ -308,6 +351,13 @@ def create_app(settings: Settings | None = None, testing=False):
                 AnalysisRequest(source_id=source["id"], detector=body.detector, live=True).model_dump(),
             )
         return job
+
+    @app.post("/api/matches/{match_id}/screen-pair")
+    def screen_pair(match_id: str):
+        from .phone import create_pair
+
+        settings.require_space()
+        return create_pair(store, supervisor, match_id, purpose="screen")
 
     @app.post("/api/matches/{match_id}/pair")
     def pair(match_id: str):
@@ -367,6 +417,10 @@ def create_app(settings: Settings | None = None, testing=False):
         return StreamingResponse(
             stream(), media_type="text/event-stream", headers={"Cache-Control": "no-cache"}
         )
+
+    from .phone import receiver_app
+
+    app.mount("/screen-ingest", receiver_app(settings, purpose="screen"))
 
     frontend = Path(__file__).resolve().parents[2] / "dist"
     if frontend.exists():

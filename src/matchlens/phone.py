@@ -4,21 +4,24 @@ import hashlib
 import json
 import os
 import secrets
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from filelock import FileLock
 
 from .domain import now, uid
 from .storage import Store, atomic_json
 
 
-def create_pair(store, supervisor, match_id):
+def create_pair(store, supervisor, match_id, purpose="phone"):
+    store.get(match_id)
     source_id, pair_id, secret = uid(), uid(), secrets.token_urlsafe(32)
     source = {
         "id": source_id,
-        "name": "Phone stream",
-        "kind": "phone",
+        "name": "Mac screen recording" if purpose == "screen" else "Phone television recording",
+        "kind": purpose,
+        "profile": "screen" if purpose == "screen" else "phone_tv",
         "status": "recording",
         "offset": 0,
         "duration": 0,
@@ -33,6 +36,9 @@ def create_pair(store, supervisor, match_id):
     )
     pairing = {
         "id": pair_id,
+        "purpose": purpose,
+        "sender_epoch": None,
+        "health_events": [],
         "match_id": match_id,
         "source_id": source_id,
         "job_id": job["id"],
@@ -58,9 +64,15 @@ def create_pair(store, supervisor, match_id):
     }
 
 
-def receiver_app(settings):
+def receiver_app(settings, purpose="phone"):
     store = Store(settings)
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+
+    @app.exception_handler(ValueError)
+    async def invalid(request, exc):
+        from fastapi.responses import JSONResponse
+
+        return JSONResponse({"detail": str(exc)}, 400)
 
     def authenticate(pair_id, request):
         if len(pair_id) != 32 or any(c not in "0123456789abcdef" for c in pair_id):
@@ -69,6 +81,8 @@ def receiver_app(settings):
         if not path.exists():
             raise HTTPException(404, "Pairing not found")
         pairing = json.loads(path.read_text())
+        if pairing.get("purpose", "phone") != purpose:
+            raise HTTPException(403, "Pairing belongs to another capture channel")
         given = hashlib.sha256(request.headers.get("x-pair-secret", "").encode()).hexdigest()
         if pairing["expires"] < now() or not secrets.compare_digest(given, pairing["secret_hash"]):
             raise HTTPException(403, "Pairing expired or invalid")
@@ -89,7 +103,22 @@ def receiver_app(settings):
 
     @app.get("/", response_class=HTMLResponse)
     def page():
-        return PHONE_PAGE
+        return (Path(__file__).parent / "sender/index.html").read_text()
+
+    @app.get("/sender.js")
+    def sender_script():
+        return FileResponse(Path(__file__).parent / "sender/sender.js", media_type="text/javascript")
+
+    @app.post("/television/{pair_id}")
+    async def television(pair_id: str, request: Request):
+        from .television import save_setup
+
+        _, pairing = authenticate(pair_id, request)
+        if purpose != "phone":
+            raise HTTPException(403, "Television setup is for paired phone capture only")
+        body = await request.json()
+        body["revision"] = store.review(pairing["match_id"])[0]
+        return save_setup(store, pairing["match_id"], pairing["source_id"], body)
 
     @app.post("/ingest/{pair_id}/{sequence}")
     async def ingest(pair_id: str, sequence: int, request: Request):
@@ -97,6 +126,9 @@ def receiver_app(settings):
         if sequence < 0:
             raise HTTPException(400, "Invalid sequence")
         settings.require_space()
+        sender_epoch = request.headers.get("x-sender-epoch")
+        if sender_epoch and len(sender_epoch) > 100:
+            raise HTTPException(400, "Invalid sender epoch")
         staged = settings.data_dir / "temporary" / f"{uid()}.chunk"
         digest = hashlib.sha256()
         size = 0
@@ -110,6 +142,11 @@ def receiver_app(settings):
                     digest.update(chunk)
             with FileLock(str(path) + ".lock", timeout=5):
                 pairing = json.loads(path.read_text())
+                if pairing.get("sender_epoch") and sender_epoch != pairing["sender_epoch"]:
+                    raise HTTPException(
+                        409,
+                        "Recorder epoch changed. Create a new pairing/source; never append a restarted recorder to this timeline.",
+                    )
                 if sequence == pairing["next_sequence"] - 1 and digest.hexdigest() == pairing["last_digest"]:
                     return {"next_sequence": pairing["next_sequence"], "duplicate": True}
                 if sequence != pairing["next_sequence"] or pairing["finished"]:
@@ -124,6 +161,7 @@ def receiver_app(settings):
                     out.flush()
                     os.fsync(out.fileno())
                 pairing.update(
+                    sender_epoch=sender_epoch or pairing.get("sender_epoch"),
                     next_sequence=sequence + 1,
                     bytes=pairing["bytes"] + size,
                     last_digest=digest.hexdigest(),
@@ -133,6 +171,51 @@ def receiver_app(settings):
                 return {"next_sequence": sequence + 1, "bytes": pairing["bytes"]}
         finally:
             staged.unlink(missing_ok=True)
+
+    @app.get("/status/{pair_id}")
+    def status(pair_id: str, request: Request):
+        _, pairing = authenticate(pair_id, request)
+        source = store.source(pairing["match_id"], pairing["source_id"])
+        job = store.job(pairing["match_id"], pairing["job_id"])
+        return {
+            "next_sequence": pairing["next_sequence"],
+            "bytes": pairing["bytes"],
+            "sender_epoch": pairing.get("sender_epoch"),
+            "finished": pairing["finished"],
+            "recording_state": job["status"],
+            "recorded_seconds": source.get("duration", 0),
+            "segments": len(source.get("segments", [])),
+            "last_received": pairing.get("last_received"),
+            "error": job.get("error"),
+            "source_id": pairing["source_id"],
+        }
+
+    @app.post("/health/{pair_id}")
+    async def health(pair_id: str, request: Request):
+        from typing import Literal
+
+        from pydantic import Field
+
+        from .domain import StrictModel
+
+        class Health(StrictModel):
+            state: Literal["paused", "resumed", "suspended", "track_ended"]
+            elapsed_ms: float = Field(ge=0, le=24 * 3600 * 1000)
+
+        path, pairing = authenticate(pair_id, request)
+        body = Health.model_validate(await request.json()).model_dump()
+        with FileLock(str(path) + ".lock", timeout=5):
+            pairing = json.loads(path.read_text())
+            if pairing["finished"]:
+                raise HTTPException(409, "Recording finalized")
+            if len(pairing.get("health_events", [])) >= 5000:
+                raise HTTPException(413, "Too many discontinuities; finalize and create a new source")
+            source = store.source(pairing["match_id"], pairing["source_id"])
+            pairing.setdefault("health_events", []).append(
+                {**body, "received": now(), "after": source.get("duration", 0), "position_known": False}
+            )
+            atomic_json(path, pairing)
+        return {"saved": True}
 
     @app.post("/finish/{pair_id}")
     def finish(pair_id: str, request: Request):
@@ -147,14 +230,3 @@ def receiver_app(settings):
         return {"finished": True}
 
     return app
-
-
-PHONE_PAGE = r"""<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>MatchLens · Camera</title>
-<style>body{margin:0;padding:28px;background:#101d1b;color:#eef2e9;font:16px system-ui}main{max-width:640px;margin:auto}h1{font-size:40px;letter-spacing:-2px}video{width:100%;border-radius:16px;background:#07100f}button{padding:14px 22px;background:#dbfa8d;border:0;border-radius:10px;font:inherit;margin:8px 8px 8px 0}p{line-height:1.6;color:#b6c6bc}#status{color:#dbfa8d}small{display:block;margin:20px 0}</style>
-<main><small>MATCHLENS / LOCAL CAMERA</small><h1>Your sideline. Connected.</h1><p>Video goes directly to your computer over your local network. Keep this page open, your phone awake, and connect power for a full match.</p><video id="preview" autoplay muted playsinline></video><p id="status">Ready to connect</p><button id="start">Start camera</button><button id="stop" disabled>Finish recording</button><small>Network interruptions are retried in order. A full buffer pauses capture and creates a visible coverage gap. Phone lock/background capture is not guaranteed.</small></main>
-<script>
-const [pair,secret]=location.hash.slice(1).split(':');let recorder,stream,queue=[],sequence=0,sending=false,finishing=false,wake;const status=document.getElementById('status');
-async function send(){if(sending)return;sending=true;try{while(queue.length){const blob=queue[0];try{const r=await fetch('/ingest/'+pair+'/'+sequence,{method:'POST',headers:{'x-pair-secret':secret},body:blob});if(!r.ok)throw Error(await r.text());queue.shift();sequence++;status.textContent='Recording · '+sequence+' chunks saved on computer';if(recorder.state==='paused'&&queue.length<3){recorder.resume();status.textContent+=' · resumed after network gap'}}catch(e){status.textContent='Connection interrupted · retrying. '+String(e).slice(0,90);await new Promise(r=>setTimeout(r,1500));if(finishing&&queue.length===0)break}}}finally{sending=false}if(finishing){await fetch('/finish/'+pair,{method:'POST',headers:{'x-pair-secret':secret}});status.textContent='Saved on your computer';stream.getTracks().forEach(t=>t.stop());wake?.release()}}
-document.getElementById('start').onclick=async()=>{try{if(!pair||!secret)throw Error('Open the pairing link from MatchLens on your computer');stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720},frameRate:{ideal:30}},audio:true});document.getElementById('preview').srcObject=stream;const mime=['video/webm;codecs=vp8,opus','video/mp4;codecs=avc1.42E01E,mp4a.40.2','video/mp4'].find(m=>MediaRecorder.isTypeSupported(m));recorder=new MediaRecorder(stream,{...(mime?{mimeType:mime}:{}),videoBitsPerSecond:4000000});recorder.ondataavailable=e=>{if(e.data.size){queue.push(e.data);if(queue.reduce((s,b)=>s+b.size,0)>24*1024*1024&&recorder.state==='recording'){recorder.pause();status.textContent='Network buffer full · capture paused, coverage gap begins'}send()}};recorder.onstop=()=>{finishing=true;send()};recorder.start(2000);document.getElementById('start').disabled=true;document.getElementById('stop').disabled=false;status.textContent='Recording locally to computer';try{wake=await navigator.wakeLock.request('screen')}catch{}}catch(e){status.textContent=String(e)}};
-document.getElementById('stop').onclick=()=>{document.getElementById('stop').disabled=true;recorder.stop()};
-</script></html>"""

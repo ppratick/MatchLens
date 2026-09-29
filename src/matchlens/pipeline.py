@@ -9,9 +9,12 @@ import psutil
 
 from .decoder import buffered_frames
 from .domain import now
+from .live import live_policy
 from .media import quality, sha256
+from .profiles import profile_id
 from .sports import SoccerCandidates
 from .storage import Store, encode
+from .television import MovementGuard, original_box, rectify
 from .tracking import Tracker
 from .vision import detector_for
 
@@ -19,8 +22,17 @@ from .vision import detector_for
 def analyze(store: Store, match_id: str, job: dict):
     config = job["config"]
     source = store.source(match_id, config["source_id"])
-    detector = detector_for(config["detector"], store.settings)
+    detector = detector_for(config["detector"], store.settings, config.get("provider", "cpu"))
     checkpoint = job.get("checkpoint", {})
+    television = config.get("television")
+    guard = None
+    tv_invalid = checkpoint.get("tv_invalid", False)
+    if television:
+        reference_path = store.path(match_id, television["reference"])
+        if sha256(reference_path) != television["reference_sha256"]:
+            raise ValueError("Television reference frame changed; start a new reviewed setup")
+        guard = MovementGuard(cv2.imread(str(reference_path)), television)
+        guard.invalid = tv_invalid
     tracker = Tracker(job["id"][:8], checkpoint.get("tracker"))
     candidates = SoccerCandidates(checkpoint.get("events"))
     last = checkpoint.get("time", -1.0)
@@ -29,21 +41,28 @@ def analyze(store: Store, match_id: str, job: dict):
     fps = checkpoint.get("fps", requested_fps)
     processed_segments = set(checkpoint.get("segments", []))
     skipped = list(checkpoint.get("skipped", []))
+    visualizations = checkpoint.get("visualizations", True)
     last_cut = checkpoint.get("last_cut", -1.0)
     started, accumulated = time.monotonic(), checkpoint.get("wall_seconds", 0.0)
     previous_thumb = np.array(checkpoint["thumbnail"]) if checkpoint.get("thumbnail") is not None else None
     batch, proposals = [], []
     run_id = job["id"]
-    model_path = store.settings.data_dir / "models/yolox_tiny.onnx"
+    model_path = store.settings.data_dir / (
+        "models/yolox_s.onnx" if config["detector"] == "yolox_s" else "models/yolox_tiny.onnx"
+    )
     provenance = {
         "detector": detector.name,
-        "model_sha256": sha256(model_path) if config["detector"] == "yolox" else None,
+        "model_sha256": sha256(model_path) if config["detector"] in ("yolox", "yolox_s") else None,
         "source_sha256": source.get("sha256"),
-        "pipeline": "0.1.0",
+        "pipeline": "0.2.0",
         "sampling_fps": requested_fps,
         "accuracy": "unvalidated",
-        "runtime": "CPU",
+        "runtime": config.get("provider", "cpu"),
+        "registered_providers": detector.session.get_providers() if hasattr(detector, "session") else [],
+        "television": television,
+        "setup_revision": config.get("setup_revision"),
         "source_id": source["id"],
+        "source_profile": profile_id(source, store.get(match_id)["profile"]),
     }
     if checkpoint and job.get("provenance") and job["provenance"] != provenance:
         raise ValueError("Source/model/pipeline changed since checkpoint; start a new analysis run")
@@ -51,7 +70,9 @@ def analyze(store: Store, match_id: str, job: dict):
         if sha256(store.path(match_id, source["path"])) != source["sha256"]:
             raise ValueError("Original media changed since import; resume refused")
     job["provenance"] = provenance
-    store.activate(match_id, source["id"], run_id)
+    # First analysis may be selected; subsequent runs require explicit version selection.
+    if source["id"] not in store.active_runs(match_id):
+        store.activate(match_id, source["id"], run_id)
 
     def flush():
         nonlocal batch, proposals
@@ -66,6 +87,8 @@ def analyze(store: Store, match_id: str, job: dict):
             "fps": fps,
             "wall_seconds": elapsed,
             "last_cut": last_cut,
+            "tv_invalid": tv_invalid,
+            "visualizations": visualizations,
             "thumbnail": previous_thumb.tolist() if previous_thumb is not None else None,
         }
         job.update(
@@ -81,6 +104,8 @@ def analyze(store: Store, match_id: str, job: dict):
                 if config["live"]
                 else None,
                 "skipped_intervals": skipped,
+                "visualizations": visualizations,
+                "analysis_state": "reduced" if fps < requested_fps else "normal",
             },
         )
         with store.db(match_id) as db:
@@ -115,12 +140,22 @@ def analyze(store: Store, match_id: str, job: dict):
         pending = [s for s in segments if s["id"] not in processed_segments]
         if config["live"] and source.get("status") == "recording" and pending:
             newest = pending[-1]["end"]
-            if newest - max(last, pending[0]["start"]) > 12 and len(pending) > 2:
+            lag = newest - max(last, pending[0]["start"])
+            policy = live_policy(lag, fps)
+            fps, visualizations = policy.sample_fps, policy.visualizations
+            if policy.recording_only:
+                skipped.append([pending[0]["start"], pending[-1]["end"]])
+                job.update(
+                    status="paused",
+                    error="Recording-only mode: analysis delay exceeded 60 s at minimum sampling. Run an offline pass after capture.",
+                )
+                flush()
+                return
+            if policy.skip_stale and len(pending) > 2:
                 discarded = pending[:-2]
                 skipped.append([discarded[0]["start"], discarded[-1]["end"]])
                 processed_segments.update(s["id"] for s in discarded)
                 pending = pending[-2:]
-                fps = max(2.0, fps / 2)
                 tracker.reset()
         for segment in pending:
             offset = segment["start"]
@@ -140,7 +175,34 @@ def analyze(store: Store, match_id: str, job: dict):
                     last_cut = timestamp
                     flags.append("Camera movement/cut: identities reset; review calibration validity")
                 previous_thumb = thumb.astype(float)
-                detections = detector.detect(image)
+                analysis_image = image
+                allow_detection = True
+                if guard and timestamp >= television["start"]:
+                    movement = guard.check(image)
+                    if movement == "moved":
+                        if not tv_invalid:
+                            tracker.reset()
+                            last_cut = timestamp
+                        tv_invalid = True
+                        allow_detection = False
+                        flags.append(
+                            "Television/phone moved: rectification invalid; recording continues. Mark corners and start a new run."
+                        )
+                    elif movement == "obscured":
+                        allow_detection = False
+                        flags.append(
+                            "Television surroundings obscured or alignment uncertain: inference withheld"
+                        )
+                    elif movement == "unavailable":
+                        flags.append(
+                            "Television movement check unavailable: insufficient static surroundings; verify alignment manually"
+                        )
+                    analysis_image = rectify(image, television)
+                detections = detector.detect(analysis_image) if allow_detection else []
+                if guard and timestamp >= television["start"]:
+                    for detection in detections:
+                        detection.box = original_box(detection.box, television, image.shape)
+
                 tracks = tracker.update(detections, timestamp)
                 frame = {
                     "schema": 1,
@@ -154,6 +216,8 @@ def analyze(store: Store, match_id: str, job: dict):
                     "sample_interval": 1 / fps,
                     "scene_cut": cut,
                     "last_cut": last_cut,
+                    "television_valid": not tv_invalid if television else None,
+                    "analysis_coordinate_space": "displayed_original_normalized",
                     "width": image.shape[1],
                     "height": image.shape[0],
                 }

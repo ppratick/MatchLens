@@ -40,6 +40,8 @@ import { PairDialog } from "./features/capture/PairDialog";
 import { ClockDialog } from "./features/timeline/ClockDialog";
 import { ExcludeDialog } from "./features/timeline/ExcludeDialog";
 import { useWorkspace } from "./hooks/useWorkspace";
+import { AnnotationDialog } from "./features/players/AnnotationDialog";
+
 export function App() {
   const workspace = useWorkspace();
   const {
@@ -531,6 +533,21 @@ export function App() {
         </div>
       )}
 
+      {workspace.screenCapture.preview && modal !== "capture" && (
+        <div className="toast" role="status">
+          <span>
+            Screen recording {workspace.screenCapture.state} · keep this tab
+            open
+          </span>
+          <button
+            className="button small"
+            onClick={workspace.screenCapture.finish}
+          >
+            Finish screen recording
+          </button>
+        </div>
+      )}
+      <AnnotationDialog {...workspace} />
       <NewDialog {...workspace} />
 
       <AnalyzeDialog {...workspace} />

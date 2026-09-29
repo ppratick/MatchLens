@@ -60,3 +60,7 @@ status updates, and a commit. No remote push. All automation uses temporary data
 
 Optional SAM 2, Tauri, WebRTC, and alternative observation databases require a
 measured improvement; do not add them solely to expand the stack.
+
+## Progress after capture and review integration
+
+Milestones 0–2 are implemented and checked. Milestones 3–4 have generated-browser transport/playback tests, TV geometry/movement tests, and manual desktop UI inspection; actual Mac picker permissions/audio and iPhone 17 Pro Max remain unverified. Milestone 6 has CPU/CoreML runtime traces, single-frame parity, warmup/throughput/RSS measurements and a configurable default-CPU path; alternative neural weights and labeled profile evaluation remain gates. Milestone 7 has a corrected 180-second audio/video recovery soak, five critical browser workflows and 40 backend tests. Milestone 5 and additional reliability/packaging work remain to be implemented; external validation does not excuse those independent tasks.

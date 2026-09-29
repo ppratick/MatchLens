@@ -97,6 +97,10 @@ def report(store: Store, match_id: str, pinned_snapshot=None):
 
 
 def source_parts(source: dict, start: float, end: float):
+    if any(g.get("position_known") is False for g in source.get("gaps", [])):
+        raise ValueError(
+            "Sender recording gap has an uncertain media boundary. Review/reimport continuous epochs before exporting clips."
+        )
     segments = source.get("segments") or [
         {
             "path": source["path"],

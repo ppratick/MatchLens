@@ -24,14 +24,17 @@ class MatchCreate(StrictModel):
     home: str = Field(default="Home", min_length=1, max_length=60)
     away: str = Field(default="Away", min_length=1, max_length=60)
     sport: Literal["soccer"] = "soccer"
-    profile: Literal["wide", "phone", "broadcast", "game", "synthetic"] = "wide"
+    profile: Literal["wide", "phone", "broadcast", "game", "synthetic", "screen", "phone_tv", "sideline"] = (
+        "broadcast"
+    )
     date: str = Field(default="", max_length=40)
 
 
 class AnalysisRequest(StrictModel):
     source_id: str | None = None
     sample_fps: float = Field(default=5, ge=0.5, le=15)
-    detector: Literal["yolox", "hog", "synthetic"] = "yolox"
+    provider: Literal["cpu", "coreml"] = "cpu"
+    detector: Literal["yolox", "yolox_s", "hog", "synthetic"] = "yolox"
     experimental_events: bool = False
     live: bool = False
 

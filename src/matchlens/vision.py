@@ -23,17 +23,38 @@ def shirt_color(image, box):
 class YOLOX:
     name = "yolox-tiny-onnx"
 
-    def __init__(self, path, provider="CPUExecutionProvider"):
+    def __init__(self, path, provider="CPUExecutionProvider", profile_path=None):
+        import time
+
+        if provider not in ort.get_available_providers():
+            raise ValueError(f"Execution provider unavailable: {provider}")
+        started = time.monotonic()
         options = ort.SessionOptions()
         options.intra_op_num_threads = 3
         options.inter_op_num_threads = 1
+        if profile_path:
+            options.enable_profiling = True
+            options.profile_file_prefix = str(profile_path)
+        self.requested_provider = provider
+        providers = (
+            [
+                (
+                    provider,
+                    {"ModelFormat": "MLProgram", "MLComputeUnits": "ALL", "RequireStaticInputShapes": "1"},
+                ),
+                "CPUExecutionProvider",
+            ]
+            if provider == "CoreMLExecutionProvider"
+            else [provider]
+        )
         self.session = ort.InferenceSession(
             str(path),
             sess_options=options,
-            providers=[provider, "CPUExecutionProvider"]
-            if provider != "CPUExecutionProvider"
-            else [provider],
+            providers=providers,
         )
+        if provider not in self.session.get_providers():
+            raise ValueError(f"{provider} initialization fell back; it is not executing as requested")
+        self.initialization_seconds = time.monotonic() - started
         self.input = self.session.get_inputs()[0]
         self.height, self.width = (int(self.input.shape[-2]), int(self.input.shape[-1]))
         grids, strides = [], []
@@ -46,13 +67,22 @@ class YOLOX:
             strides.append(np.full((len(grid), 1), stride))
         self.grid, self.strides = np.concatenate(grids), np.concatenate(strides)
 
-    def detect(self, image) -> list[Detection]:
+    def tensor(self, image):
         h, w = image.shape[:2]
         ratio = min(self.height / h, self.width / w)
         resized = cv2.resize(image, (int(w * ratio), int(h * ratio)))
         tensor = np.full((self.height, self.width, 3), 114, dtype=np.uint8)
         tensor[: resized.shape[0], : resized.shape[1]] = resized
         tensor = np.ascontiguousarray(tensor.transpose(2, 0, 1)[None], dtype=np.float32)
+        return tensor, ratio
+
+    def raw(self, image):
+        tensor, _ = self.tensor(image)
+        return self.session.run(None, {self.input.name: tensor})[0]
+
+    def detect(self, image) -> list[Detection]:
+        h, w = image.shape[:2]
+        tensor, ratio = self.tensor(image)
         output = self.session.run(None, {self.input.name: tensor})[0][0].copy()
         if len(output) != len(self.grid):
             raise ValueError("Model output is not the supported raw YOLOX export")
@@ -127,14 +157,20 @@ class SyntheticDetector:
         return result
 
 
-def detector_for(name, settings):
-    if name == "yolox":
-        path = settings.data_dir / "models/yolox_tiny.onnx"
+def detector_for(name, settings, provider="cpu", profile_path=None):
+    if name in ("yolox", "yolox_s"):
+        path = settings.data_dir / ("models/yolox_s.onnx" if name == "yolox_s" else "models/yolox_tiny.onnx")
         if not path.exists():
             raise ValueError(
                 "YOLOX model missing. Run matchlens model install, or choose the limited HOG baseline."
             )
-        return YOLOX(path)
+        model = YOLOX(
+            path, "CoreMLExecutionProvider" if provider == "coreml" else "CPUExecutionProvider", profile_path
+        )
+        model.name = "yolox-small-onnx" if name == "yolox_s" else "yolox-tiny-onnx"
+        return model
+    if provider != "cpu":
+        raise ValueError("CoreML execution is available only for ONNX detector adapters")
     if name == "hog":
         return HOG()
     if name == "synthetic":

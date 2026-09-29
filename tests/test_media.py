@@ -82,6 +82,8 @@ def test_original_resume_and_export(store, video_match):
     assert frames[:10] == first
     uninterrupted = make_job(store, mid, source)
     analyze(store, mid, uninterrupted)
+    assert store.active_runs(mid)[source["id"]] == saved["id"]
+    store.activate(mid, source["id"], uninterrupted["id"])
     baseline = store.frames(mid)
 
     def normalize(rows):
@@ -310,7 +312,9 @@ def test_recording_survives_analysis_failure(store, match):
         segments = store.source(match, source["id"])["segments"]
         assert store.job(match, capture_id)["status"] == "complete"
         for segment in segments:
-            assert probe(store.path(match, segment["path"]), store.settings)["duration"] > 0
+            meta = probe(store.path(match, segment["path"]), store.settings)
+            assert meta["duration"] > 0
+            assert meta["has_audio"]
         for a, b in zip(segments, segments[1:]):
             assert abs(b["start"] - a["end"]) < 0.1
     finally:

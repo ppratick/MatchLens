@@ -58,6 +58,25 @@ def apply_review(frame: dict, review: dict) -> dict:
     result["excluded"] = any(
         x["start"] <= t < x["end"] and x.get("source_id", source) == source for x in review["exclusions"]
     )
+    annotation = review.get("annotations", {}).get(source, {})
+    if any(
+        i["kind"] in ("replay", "closeup", "non_play", "unknown") and i["start"] <= t < i["end"]
+        for i in annotation.get("intervals", [])
+    ):
+        result["excluded"] = True
+    manual = next((f for f in annotation.get("frames", []) if abs(f["time"] - t) < 0.001), None)
+    if manual:
+        result["excluded"] |= not manual["observable"]
+        result["tracks"] = [
+            {
+                "id": o.get("track_id") or f"manual-{source}-{o['id']}",
+                "box": o["box"],
+                "kind": o["kind"],
+                "score": None,
+                "manual": o,
+            }
+            for o in manual["objects"]
+        ]
     calibration = next(
         (
             c
@@ -66,7 +85,9 @@ def apply_review(frame: dict, review: dict) -> dict:
         ),
         None,
     )
-    if calibration and frame.get("last_cut", -1) > calibration["start"]:
+    if calibration and (
+        frame.get("television_valid") is False or frame.get("last_cut", -1) > calibration["start"]
+    ):
         calibration = None
     for track in result["tracks"]:
         track["player"] = ""
@@ -77,6 +98,8 @@ def apply_review(frame: dict, review: dict) -> dict:
             if label["track_id"] == track["id"] and label["start"] <= t < label["end"]:
                 track.update({k: label[k] for k in ("team", "player", "role")})
                 track["display_id"] = label.get("alias") or track["id"]
+        if track.get("manual"):
+            track.update(team=track["manual"]["team"], player=track["manual"]["player"])
         x1, y1, x2, y2 = track["box"]
         point = [(x1 + x2) / 2, y2]
         for edit in review["points"]:

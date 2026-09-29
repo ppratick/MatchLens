@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useScreenCapture } from "./useScreenCapture";
 import { api, establishSession, uploadVideo } from "../api";
 import type {
   Artifact,
@@ -9,6 +10,8 @@ import type {
   System,
 } from "../types";
 type Modal =
+  | "television"
+  | "annotate"
   | "new"
   | "event"
   | "analyze"
@@ -70,6 +73,7 @@ export function useWorkspace() {
       setDetail(d);
     }
   }, [selected]);
+  const screenCapture = useScreenCapture(selected, notify, refresh);
   useEffect(() => {
     establishSession()
       .then(async () => {
@@ -86,7 +90,12 @@ export function useWorkspace() {
   useEffect(() => {
     if (!booted) return;
     refresh().catch((e) => notify(e.message));
-    const id = window.setInterval(() => refresh().catch(() => {}), 2500);
+    const id = window.setInterval(() => {
+      refresh().catch(() => {});
+      api<System>("/system")
+        .then(setSystem)
+        .catch(() => {});
+    }, 2500);
     return () => clearInterval(id);
   }, [booted, refresh, notify]);
   useEffect(() => {
@@ -151,6 +160,8 @@ export function useWorkspace() {
   }, [selected, sourceId, detail?.match.revision, latestAnalysis?.status]);
   const track = detail?.tracks.find((t) => t.id === trackId);
   const currentFrame =
+    !(recording && liveMode === "feed") &&
+    latestAnalysis?.metrics?.visualizations !== false &&
     frame &&
     frame.source_id === sourceId &&
     Math.abs(time - frame.time) <= Math.max(0.6, frame.sample_interval * 1.5)
@@ -285,6 +296,7 @@ export function useWorkspace() {
     `/api/matches/${selected}/exports/${a.id}/${name}`;
 
   return {
+    screenCapture,
     section,
     setSection,
     matches,

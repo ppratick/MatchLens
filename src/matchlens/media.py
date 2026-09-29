@@ -80,6 +80,9 @@ def register_import(store: Store, match_id: str, staged: Path, filename: str) ->
         "id": source_id,
         "name": Path(filename).name[:200],
         "kind": "file",
+        "profile": "synthetic"
+        if store.get(match_id)["profile"] == "synthetic"
+        else {"screen": "screen", "phone_tv": "phone_tv"}.get(store.get(match_id)["profile"], "broadcast"),
         "offset": 0,
         "path": relative,
         "sha256": sha256(destination),

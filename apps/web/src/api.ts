@@ -67,3 +67,43 @@ export const clock = (seconds: number) =>
     .padStart(2, "0")}`;
 export const bytes = (n: number) =>
   n >= 1e9 ? `${(n / 1e9).toFixed(1)} GB` : `${(n / 1e6).toFixed(0)} MB`;
+
+export class CaptureError extends Error {
+  constructor(
+    message: string,
+    public status: number,
+  ) {
+    super(message);
+  }
+}
+
+export async function sendCapture(
+  path: string,
+  secret: string,
+  body?: Blob | object,
+  epoch?: string,
+) {
+  const response = await fetch("/screen-ingest" + path, {
+    signal: AbortSignal.timeout(10000),
+    method: body === undefined ? "GET" : "POST",
+    headers: {
+      "X-MatchLens-Token": token,
+      "x-pair-secret": secret,
+      ...(epoch ? { "x-sender-epoch": epoch } : {}),
+      ...(body instanceof Blob ? {} : { "Content-Type": "application/json" }),
+    },
+    body:
+      body === undefined
+        ? undefined
+        : body instanceof Blob
+          ? body
+          : JSON.stringify(body),
+  });
+  const result = await response.json();
+  if (!response.ok)
+    throw new CaptureError(
+      result.detail || response.statusText,
+      response.status,
+    );
+  return result;
+}

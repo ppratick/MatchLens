@@ -1,4 +1,4 @@
-# MatchLens 0.1 status
+# MatchLens engineering beta status
 
 Implemented and locally exercised on 2026-09-29. This is an engineering beta with production-style separation and persistence, not a claim that all of the original long-term product plan is complete.
 
@@ -13,9 +13,9 @@ Implemented and locally exercised on 2026-09-29. This is an engineering beta wit
 | Field mapping | Four-corner UI and multi-landmark API, intervals, homography, visible-polygon limits | No automatic field-line/goal-structure detector; moving-camera calibration remains manual |
 | Timeline and statistics | Confirmed goals/shots/passes/turnovers/saves/possession, score, unknown possession, reviewed-player counts and observed time | Events beyond control proposals require human entry/review; no exact distance/speed or xG |
 | Event detection | Optional experimental ball-control interval proposals | No trained goal/shot/pass/save/turnover classifier; proposals never become facts automatically |
-| Corrections | Event edits/rejection, interval identity/team/role edits, point fixes, calibration, exclusion, aliases, undo/redo | Identity split/link is a review alias/interval operation, not raw tracker retraining; raw track-list summaries are fragment-oriented |
-| Video capture | Independent FFmpeg segmentation for macOS devices, stream URL, synthetic source | Real hardware permissions/device behavior not tested; one active capture slot |
-| Phone streaming | Separate HTTPS paired receiver, ordered durable chunks, bounded browser buffer | Requires trusted certificate and foreground phone; real iOS/Android not certified |
+| Corrections | Drawn player/ball frame labels, checksummed annotation exchange, event/identity/team edits, field/TV calibration, exclusions, undo/redo | Identity split/link is a review alias/interval operation, not raw tracker retraining; raw track-list summaries are fragment-oriented |
+| Video capture | Browser display/window picker, independent authenticated ingest/FFmpeg recording, audio availability, indexed devices and streams | Real hardware permissions/device behavior not tested; one active capture slot |
+| Phone streaming | Separate HTTPS paired receiver, sender epochs, idempotent ordered chunks, health/status, manual TV alignment and movement guard | Requires trusted certificate and foreground phone; real iOS/Android not certified |
 | Live UI | Recording/job status, buffered video, delayed analyzed frame, score/clock, events, field, quality observations | Saved-segment delay is measured; full sensor-to-screen latency and exact device frame drops are not |
 | Backpressure/recovery | Bounded decode queue, analysis skip/downsample, checkpoints, independent recorder, restarted-worker detection | Recording cannot recover unavailable network frames or guarantee a power-loss tail |
 | Highlights | Automatic clip queue on confirmed goal/shot/save; custom, exact, fast-copy, annotated, team/player reel | Export runs after capture; gap-crossing clips rejected; player reels rely on reviewed event names |
@@ -27,7 +27,7 @@ Implemented and locally exercised on 2026-09-29. This is an engineering beta wit
 
 ## Verified in this environment
 
-- 24 backend domain/API/media tests pass. One upstream Starlette/httpx test-client deprecation warning remains; it is not a runtime test failure.
+- 40 backend domain/API/media tests pass. One upstream Starlette/httpx test-client deprecation warning remains; it is not a runtime test failure.
 - TypeScript checking and Vite production build pass.
 - A real localhost end-to-end run generated and analyzed the 20-second synthetic fixture, produced 14 tracks, served HTTP range video, and exported a playable MP4 plus HTML/JSON/CSV.
 - The same run showed score 0–1 and 85% sampled coverage after the fixture exclusion; these are scripted demonstration facts, not inferred real-match results.
@@ -63,3 +63,15 @@ report, persisted review after page reload, player inspection, setup, creation, 
 dialog keyboard dismissal. Native Chrome and the actual localhost
 analysis/media-range/MP4/HTML/JSON/CSV path were also rechecked using temporary
 storage. Browser reload proves persisted HTTP state, not a process-restart test.
+
+## Source, capture, and evaluation milestones
+
+Five explicit profiles are exposed via `/api/profiles`; sideline is **Coming later**. Later analysis runs no longer replace the selected version implicitly. Annotation exchange validates checksum, profile, offset, schema and review revision; TV references and field landmarks are included. Manual frame screenshots are synchronized to saved timestamps.
+
+Five Playwright workflows pass: review/pinned exports/persistence, setup/creation, box labels and TV corners, generated screen capture, and generated phone-TV capture. Actual browser encoding and playable saved segments are exercised. Native Chrome annotation layout was inspected. Backend transport tests cover duplicate/reordered chunks, sender epoch mismatch, status and suspension; screen ingest is protected on loopback and rejected by the LAN phone receiver.
+
+CoreML can be selected experimentally. Actual kernel placement, one-frame raw output parity, compilation/warmup, sustained short throughput and worker RSS are recorded in `validation/provider-comparison-synthetic.json`. CPU remains default. YOLOX Small has an adapter/import path but missing weights; no completed comparison or accuracy claim is made. See evaluation for measured values and limits.
+
+Live overload policy reduces sampling, disables overlays, skips stale analysis with intervals, then pauses inference in recording-only mode. Original video is never deleted to reduce latency. Buffer pauses/suspension have explicit unknown-boundary gaps; exports cannot silently concatenate those timelines. A full 120-minute hardware soak, true device frame-drop counts and sensor-to-screen latency remain unverified.
+
+The corrected 180-second generated capture/actual YOLOX CPU soak preserved 91 playable, audio-containing segments and 181.355 seconds through an intentional inference crash, with no segment timeline gaps. This short engineering soak is not the full-match hardware gate. Raw measurements are committed without media in `validation/soak-synthetic-180s.json`. All automated writes remained in temporary libraries; the user's library was not modified.

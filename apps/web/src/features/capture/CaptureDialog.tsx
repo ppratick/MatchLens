@@ -1,3 +1,4 @@
+import { ScreenCapturePanel } from "./ScreenCapturePanel";
 import { ArrowRight, Radio, AlertTriangle, Smartphone } from "lucide-react";
 import { api } from "../../api";
 import { ModalShell } from "../../shared/ModalShell";
@@ -5,6 +6,7 @@ import type { Workspace } from "../../hooks/useWorkspace";
 export function CaptureDialog(
   workspace: Pick<
     Workspace,
+    | "screenCapture"
     | "modal"
     | "close"
     | "act"
@@ -36,6 +38,10 @@ export function CaptureDialog(
           subtitle="Recording runs independently from analysis. Only committed media is analyzed."
           onClose={close}
         >
+          <ScreenCapturePanel
+            screenCapture={workspace.screenCapture}
+            recording={recording}
+          />
           <div className="capture-options">
             <button
               onClick={() =>
@@ -50,8 +56,8 @@ export function CaptureDialog(
               }
             >
               <Smartphone size={25} />
-              <strong>Phone on your network</strong>
-              <span>Pair with the separate HTTPS receiver</span>
+              <strong>Phone recording a television</strong>
+              <span>Landscape setup with the separate HTTPS receiver</span>
               <ArrowRight size={17} />
             </button>
           </div>
@@ -77,7 +83,9 @@ export function CaptureDialog(
               <select name="kind">
                 <option value="stream">Stream URL (RTSP / RTMP / HTTP)</option>
                 <option value="screen">macOS screen device</option>
-                <option value="camera">macOS camera device</option>
+                <option value="camera" disabled>
+                  Physical sideline camera · Coming later
+                </option>
                 <option value="test">Synthetic test source</option>
               </select>
             </label>

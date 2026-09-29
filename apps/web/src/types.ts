@@ -21,6 +21,11 @@ export type Source = {
   duration: number;
   width: number;
   height: number;
+  profile?: string;
+  bytes?: number;
+  received_bytes?: number;
+  last_received?: number;
+  has_audio?: boolean;
   poster?: string;
   path?: string;
   proxy?: string;
@@ -65,6 +70,11 @@ export type Job = {
   cancel?: boolean;
   config: Record<string, unknown>;
   metrics?: {
+    visualizations?: boolean;
+    analysis_state?: string;
+    bytes?: number;
+    received_bytes?: number;
+    wall_seconds?: number;
     processed_frames?: number;
     processed_fps?: number;
     rss_mb?: number;
