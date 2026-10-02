@@ -4,12 +4,11 @@ A local-first soccer video review application. Import a recording, track observe
 
 **Release status: 0.1 engineering beta, not a fully autonomous soccer analyst.** The application and local processing workflow are implemented. Real-match detection/tracking accuracy is unvalidated; automatic goals, shots, passes, turnovers, and saves are not implemented as reliable classifiers. These events can be entered, corrected, and confirmed manually. Experimental ball-control proposals must be reviewed. See [actual capabilities and validation](docs/STATUS.md), not just the longer-term [project plan](PLAN.md).
 
-## Run on this Mac
+## Run an installed checkout
 
-Dependencies and the local YOLOX model have already been installed in this checkout.
+Complete the fresh installation below first. From the repository directory:
 
 ```sh
-cd '/Users/pratick/Library/Mobile Documents/com~apple~CloudDocs/Development/MatchLens'
 .venv/bin/python run.py serve
 ```
 
@@ -28,6 +27,8 @@ This is deliberately outside the iCloud-backed code checkout. Changing `MATCHLEN
 Requires Python 3.12+, Node.js 22+, and FFmpeg/FFprobe on PATH. This checkout was tested on Python 3.14.7, Node 22.13.1, FFmpeg 9.0.2, macOS 27.0.1, Apple M2 Pro, 16 GB RAM. Other platforms are not certified. Screen selection uses the desktop browser picker; indexed device capture also supports macOS AVFoundation.
 
 ```sh
+git clone https://github.com/ppratick/MatchLens.git
+cd MatchLens
 python3 -m venv .venv
 .venv/bin/python -m pip install -r requirements-lock.txt
 .venv/bin/python -m pip install --no-deps -e .
